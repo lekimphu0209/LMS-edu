@@ -2,8 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen, FileQuestion, ClipboardList,
-  BarChart3, LogOut, Menu, X, ChevronDown, TrendingUp, UserCircle, PlusCircle,
-  UserPlus, BookOpenCheck, Pencil, Library
+  BarChart3, LogOut, Menu, X, ChevronDown, TrendingUp, UserCircle, Pencil, MessageCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
@@ -13,24 +12,17 @@ import { Badge } from '@/components/ui/badge';
 const roleNavItems: Record<string, { label: string; icon: typeof LayoutDashboard; path: string }[]> = {
   ADMIN: [
     { label: 'Tổng quan', icon: LayoutDashboard, path: '/dashboard' },
-    { label: 'Người dùng', icon: Users, path: '/users' },
+    { label: 'Học sinh', icon: Users, path: '/users?role=STUDENT' },
+    { label: 'Giáo viên', icon: Users, path: '/users?role=TEACHER' },
     { label: 'Lớp học', icon: GraduationCap, path: '/classes' },
-    { label: 'Giáo trình', icon: BookOpen, path: '/curriculum' },
-    { label: 'Ngân hàng câu hỏi', icon: FileQuestion, path: '/questions' },
-    { label: 'Bài tập', icon: ClipboardList, path: '/assignments' },
-    { label: 'Thống kê', icon: BarChart3, path: '/statistics' },
-    { label: 'Tiến độ', icon: TrendingUp, path: '/progress' },
-    { label: 'Hồ sơ', icon: UserCircle, path: '/profile' },
   ],
   TEACHER: [
-    { label: 'Tổng quan', icon: LayoutDashboard, path: '/dashboard' },
-    { label: 'Lớp học', icon: GraduationCap, path: '/classes' },
-    { label: 'Giáo trình', icon: BookOpen, path: '/curriculum' },
+    { label: 'Lớp của tôi', icon: GraduationCap, path: '/classes' },
     { label: 'Ngân hàng câu hỏi', icon: FileQuestion, path: '/questions' },
-    { label: 'Bài tập', icon: ClipboardList, path: '/assignments' },
-    { label: 'Thống kê', icon: BarChart3, path: '/statistics' },
-    { label: 'Tiến độ', icon: TrendingUp, path: '/progress' },
-    { label: 'Hồ sơ', icon: UserCircle, path: '/profile' },
+    { label: 'Soạn bài', icon: Pencil, path: '/curriculum' },
+    { label: 'Giao bài tập', icon: ClipboardList, path: '/assignments' },
+    { label: 'Giáo trình học sinh', icon: BookOpen, path: '/progress' },
+    { label: 'Góp ý từ học sinh', icon: MessageCircle, path: '/feedback' },
   ],
   STUDENT: [
     { label: 'Tổng quan', icon: LayoutDashboard, path: '/dashboard' },
@@ -38,37 +30,13 @@ const roleNavItems: Record<string, { label: string; icon: typeof LayoutDashboard
     { label: 'Bài tập', icon: ClipboardList, path: '/assignments' },
     { label: 'Bài nộp', icon: Pencil, path: '/submissions' },
     { label: 'Tiến độ', icon: TrendingUp, path: '/progress' },
-    { label: 'Hồ sơ', icon: UserCircle, path: '/profile' },
   ],
 };
 
-const roleConfig: Record<string, { title: string; accent: string; quickActions: { label: string; path: string; icon: typeof PlusCircle }[] }> = {
-  ADMIN: {
-    title: 'Trang quản trị',
-    accent: 'bg-rose-600',
-    quickActions: [
-      { label: 'Thêm người dùng', path: '/users', icon: UserPlus },
-      { label: 'Thêm lớp học', path: '/classes', icon: GraduationCap },
-      { label: 'Thêm giáo trình', path: '/curriculum', icon: Library },
-    ],
-  },
-  TEACHER: {
-    title: 'Trang giáo viên',
-    accent: 'bg-blue-600',
-    quickActions: [
-      { label: 'Tạo câu hỏi', path: '/questions', icon: PlusCircle },
-      { label: 'Tạo bài tập', path: '/assignments', icon: ClipboardList },
-      { label: 'Xem bài nộp', path: '/submissions', icon: BookOpenCheck },
-    ],
-  },
-  STUDENT: {
-    title: 'Trang học sinh',
-    accent: 'bg-emerald-600',
-    quickActions: [
-      { label: 'Làm bài tập', path: '/submissions', icon: Pencil },
-      { label: 'Xem tiến độ', path: '/progress', icon: TrendingUp },
-    ],
-  },
+const roleConfig: Record<string, { title: string; accent: string; light: string; text: string }> = {
+  ADMIN: { title: 'Admin', accent: 'bg-[#7C3AED]', light: 'bg-[#F5F3FF]', text: 'text-[#7C3AED]' },
+  TEACHER: { title: 'Teacher', accent: 'bg-[#2563EB]', light: 'bg-[#EFF6FF]', text: 'text-[#2563EB]' },
+  STUDENT: { title: 'Student', accent: 'bg-[#22C55E]', light: 'bg-[#F0FDF4]', text: 'text-[#22C55E]' },
 };
 
 const roleLabels: Record<string, string> = {
@@ -102,90 +70,106 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header — fixed top */}
-      <header className={cn('sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80', `border-${config.accent.replace('bg-', '')}`)}>
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-6">
-          {/* Logo — left */}
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg text-primary-foreground', config.accent)}>
+      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white">
+        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-4 px-4 lg:px-6">
+          {/* Logo */}
+          <Link to="/dashboard" className="flex shrink-0 items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#2563EB] text-white">
               <GraduationCap className="h-5 w-5" />
             </div>
-            <span className="hidden text-lg font-bold sm:inline">EduConnect</span>
-            <Badge variant="secondary" className="hidden font-medium xl:inline-flex">
-              {config.title}
-            </Badge>
+            <span className="font-display hidden text-lg font-extrabold text-[#111827] xl:inline">
+              EduConnect
+            </span>
           </Link>
 
-          {/* Nav — center (desktop) */}
-          <nav className="hidden items-center gap-1 md:flex">
+          {/* Nav — desktop */}
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = `${location.pathname}${location.search}` === item.path;
               return (
                 <Link
                   key={item.path}
                   to={item.path}
                   className={cn(
-                    'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    'flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-medium transition-all',
                     isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                      ? 'bg-[#EFF6FF] font-semibold text-[#2563EB]'
+                      : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]',
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className="h-3.5 w-3.5" />
                   {item.label}
                 </Link>
               );
             })}
           </nav>
 
-          {/* Actions — right (desktop) */}
-          <div className="hidden items-center gap-2 md:flex">
-            {/* Role-specific quick actions */}
-            {config.quickActions.map((action) => (
-              <Button
-                key={action.path}
-                size="sm"
-                variant="outline"
-                onClick={() => { navigate(action.path); }}
-                className="gap-1"
-              >
-                <action.icon className="h-4 w-4" />
-                <span className="hidden lg:inline">{action.label}</span>
-              </Button>
-            ))}
+          {/* Right: role + user */}
+          <div className="flex shrink-0 items-center gap-3">
+            <span
+              className={cn(
+                'hidden rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide sm:inline-block',
+                config.light,
+                config.text,
+              )}
+            >
+              {config.title}
+            </span>
 
+            {/* Mobile menu button */}
+            <button
+              className="flex items-center justify-center rounded-md p-2 lg:hidden"
+              onClick={() => setMobileOpen(!mobileOpen)}
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+
+            {/* User profile */}
             <div className="relative">
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent"
+                className="flex items-center gap-2 rounded-[10px] border border-gray-200 bg-white px-2.5 py-1.5 text-sm transition-colors hover:bg-[#F9FAFB]"
               >
-                <div className={cn('flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-primary-foreground', config.accent)}>
+                <div
+                  className={cn(
+                    'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white',
+                    config.accent,
+                  )}
+                >
                   {initials}
                 </div>
-                <span className="hidden max-w-[140px] truncate font-medium lg:inline">{user?.fullName}</span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <span className="hidden max-w-[120px] truncate whitespace-nowrap font-medium text-[#374151] xl:inline-block">
+                  {user?.fullName}
+                </span>
+                <ChevronDown className="h-4 w-4 text-[#9CA3AF]" />
               </button>
               {profileOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-md border bg-popover p-1 shadow-md">
-                    <div className="px-3 py-2 border-b mb-1">
-                      <p className="text-sm font-medium">{user?.fullName}</p>
-                      <p className="text-xs text-muted-foreground">{user?.email}</p>
-                      <span className={cn('mt-1 inline-block rounded px-1.5 py-0.5 text-xs font-medium text-primary-foreground', config.accent)}>
+                  <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-gray-100 bg-white p-2 shadow-lg">
+                    <div className="mb-1 border-b px-3 py-2">
+                      <p className="text-sm font-medium text-[#111827]">{user?.fullName}</p>
+                      <p className="text-xs text-[#6B7280]">{user?.email}</p>
+                      <span
+                        className={cn(
+                          'mt-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white',
+                          config.accent,
+                        )}
+                      >
                         {roleLabels[user?.role || ''] || user?.role}
                       </span>
                     </div>
                     <Link
                       to="/profile"
                       onClick={() => setProfileOpen(false)}
-                      className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm transition-colors hover:bg-accent"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#374151] transition-colors hover:bg-[#F9FAFB]"
                     >
-                      <UserCircle className="h-4 w-4" />
+                      <UserCircle className="h-4 w-4 text-[#6B7280]" />
                       Hồ sơ cá nhân
                     </Link>
                     <button
                       onClick={handleLogout}
-                      className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#EF4444] transition-colors hover:bg-[#FEF2F2]"
                     >
                       <LogOut className="h-4 w-4" />
                       Đăng xuất
@@ -195,37 +179,34 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               )}
             </div>
           </div>
-
-          {/* Mobile menu button */}
-          <button
-            className="flex items-center justify-center rounded-md p-2 md:hidden"
-            onClick={() => setMobileOpen(!mobileOpen)}
-          >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
         </div>
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="border-t md:hidden">
+          <div className="border-t border-gray-100 bg-white lg:hidden">
             <div className="px-4 pt-3">
-              <Badge className={cn('text-primary-foreground', config.accent)}>
+              <span
+                className={cn(
+                  'inline-block rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white',
+                  config.accent,
+                )}
+              >
                 {config.title}
-              </Badge>
+              </span>
             </div>
             <nav className="space-y-1 px-4 py-3">
               {navItems.map((item) => {
-                const isActive = location.pathname === item.path;
+                const isActive = `${location.pathname}${location.search}` === item.path;
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
-                      'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                       isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                        ? 'bg-[#EFF6FF] font-semibold text-[#2563EB]'
+                        : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]',
                     )}
                   >
                     <item.icon className="h-4 w-4" />
@@ -233,16 +214,16 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                   </Link>
                 );
               })}
-              <div className="border-t pt-2 mt-2">
+              <div className="mt-2 border-t pt-2">
                 <div className="mb-2 px-3">
-                  <p className="text-sm font-medium">{user?.fullName}</p>
-                  <p className="text-xs text-muted-foreground">{roleLabels[user?.role || ''] || user?.role}</p>
+                  <p className="text-sm font-medium text-[#111827]">{user?.fullName}</p>
+                  <p className="text-xs text-[#6B7280]">{roleLabels[user?.role || ''] || user?.role}</p>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleLogout}
-                  className="w-full justify-start gap-2"
+                  className="w-full justify-start gap-2 text-[#EF4444] hover:bg-[#FEF2F2]"
                 >
                   <LogOut className="h-4 w-4" />
                   Đăng xuất
@@ -254,7 +235,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       </header>
 
       {/* Main content */}
-      <main className="mx-auto max-w-7xl p-4 lg:p-6">{children}</main>
+      <main className="mx-auto max-w-[1440px] p-6 lg:p-10">{children}</main>
     </div>
   );
 }

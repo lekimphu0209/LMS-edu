@@ -1,0 +1,24 @@
+{
+  "name": "@educonnect/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared tool configurations for the EduConnect monorepo",
+  "exports": {
+    "./typescript/base": "./tsconfig.base.json",
+    "./typescript/react": "./tsconfig.react.json",
+    "./typescript/node": "./tsconfig.node.json",
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/react": "./eslint/react.js",
+    "./eslint/nest": "./eslint/nest.js",
+    "./prettier": "./prettier/index.js",
+    "./tailwind/preset": "./tailwind/preset.js",
+    "./postcss": "./postcss/index.js",
+    "./vitest/base": "./vitest/base.cjs",
+    "./vitest/react": "./vitest/react.cjs",
+    "./vitest/node": "./vitest/node.cjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

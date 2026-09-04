@@ -1,0 +1,276 @@
+================================================================================
+EDUCONNECT — LEARNING MANAGEMENT SYSTEM
+SOFTWARE REQUIREMENTS SPECIFICATION
+================================================================================
+
+1. OVERVIEW
+--------------------------------------------------------------------------------
+EduConnect is a Learning Management System (LMS) for managing classes,
+curriculum, question banks, assignments, submissions, and student progress.
+
+1.1 STAKEHOLDERS
+  - Admin    : Manage all users, classes, system-wide settings
+  - Teacher  : Create curriculum, questions, assignments, grade
+  - Student  : Enroll classes, do assignments, view progress
+
+1.2 TECH STACK
+  - Backend  : NestJS 10, Prisma 6, PostgreSQL 16
+  - Frontend : React 18, Vite 6, TailwindCSS 3, shadcn/ui
+  - Auth     : JWT (access + refresh), Argon2id
+  - Monorepo : pnpm workspaces
+
+
+2. FUNCTIONAL REQUIREMENTS
+================================================================================
+
+2.1 AUTHENTICATION (AUTH)
+--------------------------------------------------------------------------------
+  AUTH-01  [High]    User dang nhap bang email + password
+  AUTH-02  [High]    He thong tra ve access token (15m) + refresh token (7d)
+  AUTH-03  [High]    User doi mat khau (can xac nhan mat khau hien tai)
+  AUTH-04  [High]    Refresh token de lay access token moi
+  AUTH-05  [High]    Dang xuat -> xoa token khoi client
+  AUTH-06  [Medium]  Register moi (chi ADMIN hoac public lan dau)
+  AUTH-07  [High]    Mat khau hash bang Argon2id
+
+2.2 USER MANAGEMENT (USER)
+--------------------------------------------------------------------------------
+  USER-01  [High]    ADMIN xem danh sach user (phan trang)
+  USER-02  [High]    ADMIN tao user moi (gan role)
+  USER-03  [High]    ADMIN cap nhat thong tin user
+  USER-04  [High]    ADMIN khoa/mo khoa user (activate/deactivate)
+  USER-05  [Medium]  ADMIN reset mat khau user
+  USER-06  [High]    User xem profile cua minh
+  USER-07  [Medium]  User cap nhat profile (fullName)
+  USER-08  [Low]     Force change password lan dau dang nhap
+
+2.3 CLASS MANAGEMENT (CLASS)
+--------------------------------------------------------------------------------
+  CLASS-01 [High]    TEACHER/ADMIN tao class (name, subject)
+  CLASS-02 [High]    TEACHER/ADMIN cap nhat class
+  CLASS-03 [Medium]  TEACHER/ADMIN xoa class
+  CLASS-04 [High]    TEACHER enroll hoc sinh vao class
+  CLASS-05 [High]    TEACHER remove hoc sinh khoi class
+  CLASS-06 [High]    STUDENT xem danh sach class da enroll
+  CLASS-07 [High]    TEACHER xem danh sach hoc sinh trong class
+  CLASS-08 [Medium]  Phan trang danh sach class
+
+2.4 CURRICULUM (CURR)
+--------------------------------------------------------------------------------
+  CURR-01  [High]    TEACHER tao curriculum (title, subject)
+  CURR-02  [High]    TEACHER tao chapter trong curriculum
+  CURR-03  [High]    TEACHER tao lesson trong chapter
+  CURR-04  [High]    TEACHER cap nhat/xoa chapter, lesson
+  CURR-05  [Medium]  TEACHER publish/draft curriculum
+  CURR-06  [High]    STUDENT xem curriculum da published
+  CURR-07  [Medium]  Sap xep chapter/lesson theo orderIndex
+
+2.5 QUESTION BANK (QB)
+--------------------------------------------------------------------------------
+  QB-01    [High]    TEACHER tao cau hoi (SINGLE, MULTI, FILL_BLANK)
+  QB-02    [High]    TEACHER tao options cho cau hoi (danh dau dap an dung)
+  QB-03    [High]    TEACHER cap nhat cau hoi + options
+  QB-04    [Medium]  TEACHER xoa cau hoi
+  QB-05    [High]    TEACHER xem danh sach cau hoi (filter theo subject)
+  QB-06    [Medium]  Gan difficulty (EASY, MEDIUM, HARD) + defaultScore
+  QB-07    [Low]     Ho tro hinh anh cho cau hoi va option
+
+2.6 ASSIGNMENTS (ASG)
+--------------------------------------------------------------------------------
+  ASG-01   [High]    TEACHER tao assignment (title, lesson optional)
+  ASG-02   [High]    TEACHER them cau hoi vao assignment tu question bank
+  ASG-03   [High]    TEACHER gan assignment cho class (target)
+  ASG-04   [Medium]  TEACHER gan assignment cho hoc sinh cu the
+  ASG-05   [High]    Thiet lap unlockDate + dueDate cho target
+  ASG-06   [Medium]  TEACHER cap nhat/xoa assignment
+  ASG-07   [High]    STUDENT xem danh sach assignment duoc gan
+
+2.7 SUBMISSIONS (SUB)
+--------------------------------------------------------------------------------
+  SUB-01   [High]    STUDENT bat dau lam bai (tao submission IN_PROGRESS)
+  SUB-02   [High]    STUDENT nop bai (submit answers)
+  SUB-03   [High]    He thong auto-cham cau SINGLE/MULTI
+  SUB-04   [High]    TEACHER cham diem thu cong (FILL_BLANK, override)
+  SUB-05   [Medium]  TEACHER them feedback/teacherNote
+  SUB-06   [High]    STUDENT xem ket qua + feedback
+  SUB-07   [Medium]  Nop sau dueDate -> status LATE
+  SUB-08   [High]    TEACHER xem danh sach submission can cham
+
+2.8 PROGRESS & STATISTICS (STAT)
+--------------------------------------------------------------------------------
+  STAT-01  [High]    ADMIN: tong quan toan he thong (users, classes, submissions)
+  STAT-02  [High]    TEACHER: tong quan (classes, questions, assignments, students)
+  STAT-03  [High]    STUDENT: tong quan (submissions, avg score, enrolled classes)
+  STAT-04  [Low]     Progress snapshot theo thoi gian
+  STAT-05  [Low]     Learning session tracking (thoi gian hoc)
+
+2.9 FEEDBACK (FB)
+--------------------------------------------------------------------------------
+  FB-01    [Medium]  TEACHER tao feedback cho submission
+  FB-02    [Medium]  TEACHER cap nhat/xoa feedback
+  FB-03    [Medium]  STUDENT xem feedback
+
+2.10 FILE STORAGE (FILE)
+--------------------------------------------------------------------------------
+  FILE-01  [Low]     Upload file (hinh anh cau hoi, bai tap)
+  FILE-02  [Low]     Abstract storage interface (local/S3 swappable)
+
+2.11 EMAIL (MAIL)
+--------------------------------------------------------------------------------
+  MAIL-01  [Low]     Gui email thong bao (tao user, reset password)
+  MAIL-02  [Low]     Abstract email interface (SMTP/stub swappable)
+
+
+3. NON-FUNCTIONAL REQUIREMENTS
+================================================================================
+
+3.1 SECURITY
+--------------------------------------------------------------------------------
+  SEC-01   [High]    Mat khau hash Argon2id, khong luu plaintext
+  SEC-02   [High]    JWT access token 15 phut, refresh 7 ngay
+  SEC-03   [High]    Role-based access control (ADMIN/TEACHER/STUDENT)
+  SEC-04   [Medium]  Helmet middleware (security headers)
+  SEC-05   [High]    CORS chi allow frontend URL
+  SEC-06   [High]    ValidationPipe whitelist + forbidNonWhitelisted
+
+3.2 PERFORMANCE
+--------------------------------------------------------------------------------
+  PERF-01  [Medium]  API response < 500ms cho query thong thuong
+  PERF-02  [Medium]  Phan trang mac dinh 20 items/page
+  PERF-03  [Medium]  React Query staleTime 60s de giam redundant requests
+
+3.3 AVAILABILITY
+--------------------------------------------------------------------------------
+  AVAIL-01 [Medium]  Docker Compose auto-restart PostgreSQL
+  AVAIL-02 [Low]     Graceful shutdown API
+
+3.4 MAINTAINABILITY
+--------------------------------------------------------------------------------
+  MAINT-01 [High]    Modular monolith, moi domain 1 NestJS module
+  MAINT-02 [High]    Shared types package cho frontend + backend
+  MAINT-03 [High]    TypeScript strict mode
+  MAINT-04 [Medium]  Swagger API docs auto-generated
+
+
+4. DATABASE SCHEMA OVERVIEW
+================================================================================
+
+4.1 DOMAINS
+--------------------------------------------------------------------------------
+  Identity    : User
+  Academic    : Class, Enrollment
+  Content     : Curriculum, Chapter, Lesson
+  Assessment  : Question, QuestionOption, Assignment, AssignmentQuestion,
+                AssignmentTarget
+  Learning    : Submission, SubmissionAnswer, ProgressSnapshot,
+                LearningSession, Feedback
+
+4.2 KEY RELATIONSHIPS
+--------------------------------------------------------------------------------
+  User --< Class (teacher)
+  User --< Enrollment (student) >-- Class
+  Curriculum --< Chapter --< Lesson
+  Lesson --< Assignment --< AssignmentQuestion >-- Question --< QuestionOption
+  Assignment --< AssignmentTarget >-- Class | User
+  AssignmentTarget --< Submission --< SubmissionAnswer
+  Submission --< Feedback
+  User --< ProgressSnapshot
+  User --< LearningSession >-- AssignmentTarget
+
+
+5. API ENDPOINTS SUMMARY
+================================================================================
+
+  Method  Path                          Role            Description
+  ------  ---------------------------   --------------  ----------------------
+  POST    /auth/login                   Public          Login
+  POST    /auth/register                Admin           Register new user
+  POST    /auth/refresh                 Public          Refresh token
+  GET     /auth/me                      Authenticated   Get profile
+  POST    /auth/change-password         Authenticated   Change password
+  GET     /users                        Admin           List users
+  POST    /users                        Admin           Create user
+  PATCH   /users/:id                    Admin           Update user
+  PATCH   /users/:id/activate           Admin           Activate user
+  PATCH   /users/:id/deactivate         Admin           Deactivate user
+  POST    /users/:id/reset-password     Admin           Reset password
+  GET     /classes                      Authenticated   List classes
+  POST    /classes                      Teacher/Admin   Create class
+  PATCH   /classes/:id                  Teacher/Admin   Update class
+  DELETE  /classes/:id                  Teacher/Admin   Delete class
+  POST    /classes/:id/enroll           Teacher/Admin   Enroll students
+  DELETE  /classes/:id/students/:sid    Teacher/Admin   Remove student
+  GET     /curriculum                   Teacher/Admin   List curricula
+  POST    /curriculum                   Teacher/Admin   Create curriculum
+  GET     /curriculum/:id               Authenticated   Get curriculum detail
+  POST    /curriculum/:id/chapters      Teacher/Admin   Create chapter
+  POST    /chapters/:id/lessons         Teacher/Admin   Create lesson
+  GET     /question-bank                Teacher/Admin   List questions
+  POST    /question-bank                Teacher/Admin   Create question
+  PATCH   /question-bank/:id            Teacher/Admin   Update question
+  DELETE  /question-bank/:id            Teacher/Admin   Delete question
+  GET     /assignments                  Authenticated   List assignments
+  POST    /assignments                  Teacher/Admin   Create assignment
+  POST    /assignments/:id/targets      Teacher/Admin   Assign to class/student
+  GET     /submissions                  Authenticated   List submissions
+  POST    /submissions/start            Student         Start submission
+  POST    /submissions/:id/submit       Student         Submit answers
+  POST    /submissions/:id/grade        Teacher/Admin   Grade submission
+  GET     /statistics/admin             Admin           Admin overview
+  GET     /statistics/teacher           Teacher         Teacher overview
+  GET     /statistics/student           Student         Student overview
+
+
+6. FRONTEND PAGES
+================================================================================
+
+  Path            Page           Roles
+  --------------- -------------- --------------------
+  /login          Login          Public
+  /dashboard      Dashboard      All authenticated
+  /users          Users          Admin
+  /classes        Classes        All authenticated
+  /curriculum     Curriculum     Admin, Teacher
+  /questions      Question Bank  Admin, Teacher
+  /assignments    Assignments    All authenticated
+  /submissions    Submissions    All authenticated
+  /statistics     Statistics     All authenticated
+
+
+7. SEED DATA
+================================================================================
+
+  Email                    Password       Role
+  ----------------------   -----------    --------
+  admin@educonnect.local   Admin@123      ADMIN
+  teacher@educonnect.local Teacher@123    TEACHER
+  student@educonnect.local Student@123    STUDENT
+
+
+8. INSTALLATION
+================================================================================
+
+  Prerequisites:
+    - Node.js >= 20
+    - pnpm >= 9
+    - Docker Desktop
+
+  Steps:
+    1. Copy .env.example to .env
+       cp .env.example .env
+
+    2. Start all services with Docker:
+       docker compose up -d --build
+
+    3. Or run development mode:
+       pnpm install
+       pnpm db:generate
+       pnpm db:push
+       pnpm db:seed
+       pnpm dev
+
+  Access:
+    Frontend  : http://localhost:5173
+    Backend   : http://localhost:3000
+    Swagger   : http://localhost:3000/api/docs
+    Adminer   : http://localhost:8080

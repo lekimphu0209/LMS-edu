@@ -1,0 +1,460 @@
+// EduConnect — Prisma Schema
+// Tổ chức theo domain: Identity, Academic, Content, Assessment, Learning
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ClassStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  REMOVED
+}
+
+enum CurriculumStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum QuestionType {
+  SINGLE
+  MULTI
+  FILL_BLANK
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum SubmissionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  LATE
+  GRADED
+}
+
+// ============================================================
+// IDENTITY DOMAIN
+// ============================================================
+
+model User {
+  id                  String              @id @default(uuid())
+  fullName            String
+  email               String              @unique
+  passwordHash        String
+  role                Role                @default(STUDENT)
+  status              UserStatus          @default(ACTIVE)
+  mustChangePassword  Boolean             @default(false)
+  createdBy           String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  // Relations — Identity
+  passwordResetLogs   PasswordResetLog[]
+  createdUsers        User[]              @relation("CreatedByUser")
+
+  // Relations — Academic
+  taughtClasses       ClassTeacher[]
+  enrolledClasses     ClassStudent[]
+  classesAsTeacher    Class[]             @relation("ClassTeacher")
+
+  // Relations — Content
+  curriculums         Curriculum[]
+
+  // Relations — Assessment
+  questions           Question[]
+  createdAssignments  Assignment[]        @relation("AssignmentCreator")
+  submissions         Submission[]
+  gradedSubmissions   Submission[]        @relation("GradedBy")
+  assignmentTargets   AssignmentTarget[]  @relation("StudentTarget")
+
+  // Relations — Learning
+  progressSnapshots   ProgressSnapshot[]
+  learningSessions    LearningSession[]
+
+  createdByUser       User?               @relation("CreatedByUser", fields: [createdBy], references: [id])
+
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model PasswordResetLog {
+  id        String   @id @default(uuid())
+  userId    String
+  resetBy   String
+  resetAt   DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_logs")
+}
+
+// ============================================================
+// ACADEMIC DOMAIN
+// ============================================================
+
+model Class {
+  id          String       @id @default(uuid())
+  name        String
+  subject     String
+  teacherId   String
+  status      ClassStatus  @default(ACTIVE)
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  teacher     User         @relation("ClassTeacher", fields: [teacherId], references: [id])
+  teachers    ClassTeacher[]
+  students    ClassStudent[]
+  curriculums ClassCurriculum[]
+  assignmentTargets AssignmentTarget[]
+
+  @@index([teacherId])
+  @@index([status])
+  @@map("classes")
+}
+
+model ClassTeacher {
+  id        String   @id @default(uuid())
+  classId   String
+  teacherId String
+  createdAt DateTime @default(now())
+
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher   User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, teacherId])
+  @@map("class_teachers")
+}
+
+model ClassStudent {
+  id         String            @id @default(uuid())
+  classId    String
+  studentId  String
+  status     EnrollmentStatus  @default(ENROLLED)
+  enrolledAt DateTime          @default(now())
+
+  class      Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student    User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, studentId])
+  @@index([studentId])
+  @@map("class_students")
+}
+
+model ClassCurriculum {
+  id           String      @id @default(uuid())
+  classId      String
+  curriculumId String
+  createdAt    DateTime    @default(now())
+
+  class        Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  curriculum   Curriculum  @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, curriculumId])
+  @@map("class_curriculums")
+}
+
+// ============================================================
+// CONTENT DOMAIN (Curriculum — 2 tiers: Chapter → Lesson)
+// ============================================================
+
+model Curriculum {
+  id        String           @id @default(uuid())
+  teacherId String
+  title     String
+  subject   String
+  status    CurriculumStatus @default(DRAFT)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  teacher   User             @relation(fields: [teacherId], references: [id])
+  chapters  Chapter[]
+  classes   ClassCurriculum[]
+  snapshots ProgressSnapshot[]
+
+  @@index([teacherId])
+  @@index([status])
+  @@map("curriculums")
+}
+
+model Chapter {
+  id           String   @id @default(uuid())
+  curriculumId String
+  title        String
+  orderIndex   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  lessons      Lesson[]
+
+  @@index([curriculumId])
+  @@map("chapters")
+}
+
+model Lesson {
+  id           String    @id @default(uuid())
+  chapterId    String
+  title        String
+  orderIndex   Int       @default(0)
+  contentNote  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  chapter      Chapter     @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  assignments  Assignment[]
+
+  @@index([chapterId])
+  @@map("lessons")
+}
+
+// ============================================================
+// ASSESSMENT DOMAIN (Question Bank + Assignments + Submissions)
+// ============================================================
+
+model Question {
+  id               String       @id @default(uuid())
+  teacherId        String
+  subject          String
+  type             QuestionType
+  questionText     String
+  questionImageUrl String?
+  difficulty       Difficulty   @default(MEDIUM)
+  defaultScore     Float        @default(1.0)
+  usageCount       Int          @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  teacher          User           @relation(fields: [teacherId], references: [id])
+  options          QuestionOption[]
+  assignmentQuestions AssignmentQuestion[]
+  submissionAnswers SubmissionAnswer[]
+
+  @@index([teacherId])
+  @@index([subject])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id            String   @id @default(uuid())
+  questionId    String
+  optionText    String
+  optionImageUrl String?
+  isCorrect     Boolean  @default(false)
+  orderIndex    Int      @default(0)
+
+  question      Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("question_options")
+}
+
+model Assignment {
+  id         String   @id @default(uuid())
+  lessonId   String?
+  title      String
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  lesson       Lesson?             @relation(fields: [lessonId], references: [id])
+  creator      User                @relation("AssignmentCreator", fields: [createdBy], references: [id])
+  questions    AssignmentQuestion[]
+  targets      AssignmentTarget[]
+
+  @@index([lessonId])
+  @@index([createdBy])
+  @@map("assignments")
+}
+
+model AssignmentQuestion {
+  id           String   @id @default(uuid())
+  assignmentId String
+  questionId   String
+  orderIndex   Int      @default(0)
+
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, questionId])
+  @@map("assignment_questions")
+}
+
+model AssignmentTarget {
+  id           String    @id @default(uuid())
+  assignmentId String
+  classId      String?
+  studentId    String?
+  unlockDate   DateTime?
+  dueDate      DateTime?
+  createdAt    DateTime  @default(now())
+
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  class        Class?     @relation(fields: [classId], references: [id])
+  student      User?      @relation("StudentTarget", fields: [studentId], references: [id])
+  submissions       Submission[]
+  learningSessions  LearningSession[]
+
+  @@index([assignmentId])
+  @@index([classId])
+  @@index([studentId])
+  @@map("assignment_targets")
+}
+
+model Submission {
+  id                 String           @id @default(uuid())
+  assignmentTargetId String
+  studentId          String
+  status             SubmissionStatus @default(IN_PROGRESS)
+  totalScore         Float?
+  teacherNote        String?
+  gradedBy           String?
+  submittedAt        DateTime?
+  gradedAt           DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  assignmentTarget   AssignmentTarget  @relation(fields: [assignmentTargetId], references: [id])
+  student            User              @relation(fields: [studentId], references: [id])
+  grader             User?             @relation("GradedBy", fields: [gradedBy], references: [id])
+  answers            SubmissionAnswer[]
+  learningSession    LearningSession?
+
+  @@index([assignmentTargetId])
+  @@index([studentId])
+  @@index([status])
+  @@map("submissions")
+}
+
+model SubmissionAnswer {
+  id                 String   @id @default(uuid())
+  submissionId       String
+  questionId         String
+  selectedOptionIds  Json?
+  textAnswer         String?
+  isCorrect          Boolean?
+  scoreEarned        Float?
+
+  submission         Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question           Question   @relation(fields: [questionId], references: [id])
+
+  @@index([submissionId])
+  @@index([questionId])
+  @@map("submission_answers")
+}
+
+// ============================================================
+// LEARNING DOMAIN (Progress + Learning Sessions)
+// ============================================================
+
+model ProgressSnapshot {
+  id              String   @id @default(uuid())
+  studentId       String
+  classId         String?
+  curriculumId    String?
+  percentComplete Float    @default(0)
+  averageScore    Float    @default(0)
+  snapshotDate    DateTime @default(now())
+
+  student         User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  curriculum      Curriculum? @relation(fields: [curriculumId], references: [id])
+
+  @@index([studentId])
+  @@index([curriculumId])
+  @@map("progress_snapshots")
+}
+
+model LearningSession {
+  id                 String    @id @default(uuid())
+  studentId          String
+  assignmentTargetId String?
+  submissionId       String?  @unique
+  startedAt          DateTime  @default(now())
+  endedAt            DateTime?
+
+  student            User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignmentTarget   AssignmentTarget? @relation(fields: [assignmentTargetId], references: [id])
+  submission         Submission?       @relation(fields: [submissionId], references: [id])
+
+  @@index([studentId])
+  @@index([assignmentTargetId])
+  @@map("learning_sessions")
+}
+
+
+// ============================================================
+// LESSON QUESTION, MILESTONE & FEEDBACK DOMAIN
+// ============================================================
+
+model LessonQuestion {
+  id         String   @id @default(uuid())
+  lessonId   String
+  questionId String
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  @@unique([lessonId, questionId])
+  @@index([lessonId])
+  @@index([questionId])
+  @@map("lesson_questions")
+}
+
+model Milestone {
+  id            String    @id @default(uuid())
+  studentId     String
+  classId       String?
+  title         String
+  description   String?
+  milestoneDate DateTime  @default(now())
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@index([studentId])
+  @@index([classId])
+  @@index([createdBy])
+  @@map("milestones")
+}
+
+model Feedback {
+  id           String   @id @default(uuid())
+  studentId    String
+  teacherId    String?
+  lessonId     String?
+  assignmentId String?
+  content      String
+  isRead       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime  @updatedAt
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([isRead])
+  @@map("feedbacks")
+}
