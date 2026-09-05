@@ -33,7 +33,7 @@ export function LoginPage() {
     try {
       const res = await api.post('/auth/login', data);
       login(res.data.tokens, res.data.user);
-      navigate('/dashboard');
+      navigate(res.data.user.role === 'STUDENT' ? '/student/classes' : '/dashboard');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Đăng nhập thất bại';
       setError(message);

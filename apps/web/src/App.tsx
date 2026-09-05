@@ -19,6 +19,13 @@ import {
   CreateAssignmentPage,
   FeedbackPage,
 } from '@/features/teacher/wrappers';
+import { StudentLayout } from '@/features/student/shared/layouts/StudentLayout';
+import StudentDashboard from '@/features/student/pages/StudentDashboard';
+import StudentClassDetail from '@/features/student/pages/StudentClassDetail';
+import StudentAssignments from '@/features/student/pages/StudentAssignments';
+import StudentProgress from '@/features/student/pages/StudentProgress';
+import StudentFeedback from '@/features/student/pages/StudentFeedback';
+import Quiz from '@/features/student/pages/Quiz';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,7 +74,7 @@ export function App() {
             />
             <Route
               element={
-                <ProtectedRoute roles={['ADMIN', 'TEACHER', 'STUDENT']}>
+                <ProtectedRoute roles={['ADMIN', 'TEACHER']}>
                   <FigmaTeacherLayout />
                 </ProtectedRoute>
               }
@@ -81,6 +88,31 @@ export function App() {
               <Route path="/progress" element={<CurriculumPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
             </Route>
+            <Route
+              path="/student"
+              element={<Navigate to="/student/classes" replace />}
+            />
+            <Route
+              element={
+                <ProtectedRoute roles={['STUDENT']}>
+                  <StudentLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/student/classes" element={<StudentDashboard />} />
+              <Route path="/student/classes/:id" element={<StudentClassDetail />} />
+              <Route path="/student/assignments" element={<StudentAssignments />} />
+              <Route path="/student/progress" element={<StudentProgress />} />
+              <Route path="/student/feedback" element={<StudentFeedback />} />
+            </Route>
+            <Route
+              path="/student/quiz"
+              element={
+                <ProtectedRoute roles={['STUDENT']}>
+                  <Quiz />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/profile"
               element={

@@ -25,11 +25,11 @@ const roleNavItems: Record<string, { label: string; icon: typeof LayoutDashboard
     { label: 'Góp ý từ học sinh', icon: MessageCircle, path: '/feedback' },
   ],
   STUDENT: [
-    { label: 'Tổng quan', icon: LayoutDashboard, path: '/dashboard' },
-    { label: 'Lớp học', icon: GraduationCap, path: '/classes' },
-    { label: 'Bài tập', icon: ClipboardList, path: '/assignments' },
-    { label: 'Bài nộp', icon: Pencil, path: '/submissions' },
-    { label: 'Tiến độ', icon: TrendingUp, path: '/progress' },
+    { label: 'Lớp học', icon: GraduationCap, path: '/student/classes' },
+    { label: 'Bài tập', icon: ClipboardList, path: '/student/assignments' },
+    { label: 'Tiến độ', icon: TrendingUp, path: '/student/progress' },
+    { label: 'Góp ý', icon: MessageCircle, path: '/student/feedback' },
+    { label: 'Hồ sơ', icon: UserCircle, path: '/profile' },
   ],
 };
 

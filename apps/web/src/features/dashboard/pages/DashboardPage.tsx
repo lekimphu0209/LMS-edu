@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Users, GraduationCap, BarChart3, BookOpen, Shield, FileQuestion, ClipboardList, Pencil, MessageCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/auth-context';
@@ -538,7 +538,6 @@ function TeacherDashboard() {
 
 function StudentDashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { data: stats } = useQuery({
     queryKey: ['statistics', 'student'],
     queryFn: async () => (await api.get('/statistics/student')).data,
@@ -599,8 +598,7 @@ function StudentDashboard() {
           {classes.slice(0, 4).map((cls: any) => (
             <div
               key={cls.id}
-              className="card cursor-pointer p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-              onClick={() => navigate(`/classes/${cls.id}`)}
+              className="card p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
             >
               <div className="mb-3 flex items-start justify-between">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#F0FDF4] text-xl font-extrabold text-[#22C55E] font-display">
@@ -638,9 +636,12 @@ export function DashboardPage() {
       </DashboardLayout>
     );
   }
+  if (user.role === 'STUDENT') {
+    return <Navigate to="/student/classes" replace />;
+  }
   return (
     <DashboardLayout>
-      {user.role === 'ADMIN' ? <AdminDashboard /> : user.role === 'TEACHER' ? <TeacherDashboard /> : <StudentDashboard />}
+      {user.role === 'ADMIN' ? <AdminDashboard /> : <TeacherDashboard />}
     </DashboardLayout>
   );
 }
