@@ -23,7 +23,6 @@ import { StudentLayout } from '@/features/student/shared/layouts/StudentLayout';
 import StudentDashboard from '@/features/student/pages/StudentDashboard';
 import StudentClassDetail from '@/features/student/pages/StudentClassDetail';
 import StudentAssignments from '@/features/student/pages/StudentAssignments';
-import StudentProgress from '@/features/student/pages/StudentProgress';
 import StudentFeedback from '@/features/student/pages/StudentFeedback';
 import Quiz from '@/features/student/pages/Quiz';
 
@@ -102,7 +101,6 @@ export function App() {
               <Route path="/student/classes" element={<StudentDashboard />} />
               <Route path="/student/classes/:id" element={<StudentClassDetail />} />
               <Route path="/student/assignments" element={<StudentAssignments />} />
-              <Route path="/student/progress" element={<StudentProgress />} />
               <Route path="/student/feedback" element={<StudentFeedback />} />
             </Route>
             <Route

@@ -2,7 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen, FileQuestion, ClipboardList,
-  BarChart3, LogOut, Menu, X, ChevronDown, TrendingUp, UserCircle, Pencil, MessageCircle
+  BarChart3, LogOut, Menu, X, ChevronDown, UserCircle, Pencil, MessageCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
@@ -27,7 +27,6 @@ const roleNavItems: Record<string, { label: string; icon: typeof LayoutDashboard
   STUDENT: [
     { label: 'Lớp học', icon: GraduationCap, path: '/student/classes' },
     { label: 'Bài tập', icon: ClipboardList, path: '/student/assignments' },
-    { label: 'Tiến độ', icon: TrendingUp, path: '/student/progress' },
     { label: 'Góp ý', icon: MessageCircle, path: '/student/feedback' },
     { label: 'Hồ sơ', icon: UserCircle, path: '/profile' },
   ],

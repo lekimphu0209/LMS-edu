@@ -1,35 +1,69 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
-
-const enrolledClasses = [
-  { id: 1, name: 'Toán 10A', teacher: 'Nguyễn Văn An', subject: 'Toán học', progress: 72, icon: '∑', color: '#2563EB', pending: 2 },
-  { id: 2, name: 'Văn 11B', teacher: 'Trần Thị Bình', subject: 'Ngữ văn', progress: 58, icon: '✍', color: '#7C3AED', pending: 1 },
-  { id: 3, name: 'Lý 12C', teacher: 'Lê Minh Cường', subject: 'Vật lý', progress: 85, icon: 'φ', color: '#22C55E', pending: 0 },
-  { id: 4, name: 'Anh 11E', teacher: 'Hoàng Văn Em', subject: 'Tiếng Anh', progress: 40, icon: 'A', color: '#F59E0B', pending: 3 },
-];
+import { getEnrolledClasses, getStudentAssignments, type EnrolledClass } from '@/data/student';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const totalPending = enrolledClasses.reduce((a, c) => a + c.pending, 0);
+  const [search, setSearch] = useState('');
+  const [subject, setSubject] = useState('');
+
+  const enrolledClasses = getEnrolledClasses();
+  const assignments = getStudentAssignments();
+
+  const totalPending = assignments.filter((a) => !a.done).length;
+  const totalOverdue = assignments.filter((a) => a.overdue).length;
+  const completed = assignments.filter((a) => a.done && a.score !== null);
+  const avgScore = completed.length
+    ? (completed.reduce((a, c) => a + (c.score ?? 0), 0) / completed.length).toFixed(1)
+    : '—';
+  const overallProgress = enrolledClasses.length
+    ? Math.round(enrolledClasses.reduce((a, c) => a + c.progress, 0) / enrolledClasses.length)
+    : 0;
+
+  const subjects = Array.from(new Set(enrolledClasses.map((c) => c.subject)));
+  const visible = enrolledClasses.filter(
+    (c) =>
+      (!subject || c.subject === subject) &&
+      (!search ||
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.teacher.toLowerCase().includes(search.toLowerCase())),
+  );
+
+  const today = new Date();
+  const weekday = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'][today.getDay()];
+  const dateStr = `${weekday}, ${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
 
   return (
     <div className="page-container" style={{ paddingTop: 32, paddingBottom: 40 }}>
       {/* Greeting */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 className="page-title">Xin chào, {user?.fullName || 'Học sinh'}! 🎓</h1>
-        <p style={{ color: '#6B7280', fontSize: 14, marginTop: 4 }}>
-          Bạn có {totalPending} bài tập cần hoàn thành. Cố lên nhé!
-        </p>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          marginBottom: 24,
+        }}
+      >
+        <div>
+          <h1 className="page-title">Xin chào, {user?.fullName || 'Học sinh'}! 🎓</h1>
+          <p style={{ color: '#6B7280', fontSize: 14, marginTop: 4 }}>
+            {totalPending > 0
+              ? `Bạn có ${totalPending} bài tập cần hoàn thành${totalOverdue ? `, ${totalOverdue} bài đã quá hạn` : ''}. Cố lên nhé!`
+              : 'Bạn đã hoàn thành tất cả bài tập. Tuyệt vời!'}
+          </p>
+        </div>
+        <div style={{ fontSize: 13, color: '#9CA3AF' }}>{dateStr}</div>
       </div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
         {[
-          { label: 'Lớp đã đăng ký', value: enrolledClasses.length, color: '#2563EB', bg: '#EFF6FF' },
-          { label: 'Bài tập chờ nộp', value: totalPending, color: '#EF4444', bg: '#FEF2F2' },
-          { label: 'Điểm trung bình', value: '8.2', color: '#22C55E', bg: '#F0FDF4' },
-          { label: 'Tiến độ tổng', value: '69%', color: '#7C3AED', bg: '#F5F3FF' },
+          { label: 'Lớp đã đăng ký', value: enrolledClasses.length, color: '#2563EB', bg: '#EFF6FF', icon: '📚' },
+          { label: 'Bài tập chờ nộp', value: totalPending, color: '#EF4444', bg: '#FEF2F2', icon: '📝' },
+          { label: 'Điểm trung bình', value: avgScore, color: '#22C55E', bg: '#F0FDF4', icon: '⭐' },
+          { label: 'Tiến độ học tập', value: `${overallProgress}%`, color: '#7C3AED', bg: '#F5F3FF', icon: '📈' },
         ].map((s) => (
           <div key={s.label} className="stat-card" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div
@@ -42,119 +76,165 @@ export default function StudentDashboard() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
+                fontSize: 22,
               }}
             >
-              <span
+              {s.icon}
+            </div>
+            <div>
+              <div
                 style={{
                   fontSize: 22,
                   fontWeight: 800,
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
                   color: s.color,
-                }}
-              >
-                {s.value}
-              </span>
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: 20,
-                  fontWeight: 800,
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  color: s.color,
+                  lineHeight: 1.1,
                 }}
               >
                 {s.value}
               </div>
-              <div style={{ fontSize: 12, color: '#6B7280' }}>{s.label}</div>
+              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{s.label}</div>
             </div>
           </div>
         ))}
       </div>
 
+      {/* Class list */}
       <div>
-        <h2 className="section-title" style={{ marginBottom: 16 }}>
-          Lớp học của tôi
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-          {enrolledClasses.map((cls) => (
-            <div
-              key={cls.id}
-              className="card"
-              style={{ padding: 20, cursor: 'pointer', transition: 'all 0.15s' }}
-              onClick={() => navigate(`/student/classes/${cls.id}`, { state: cls })}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)';
-                (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow = '';
-                (e.currentTarget as HTMLElement).style.transform = '';
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'space-between',
-                  marginBottom: 12,
-                }}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+              gap: 12,
+            }}
+          >
+            <h2 className="section-title" style={{ margin: 0 }}>
+              Lớp học của tôi{' '}
+              <span style={{ fontSize: 13, fontWeight: 500, color: '#9CA3AF' }}>({visible.length})</span>
+            </h2>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                className="input-field"
+                placeholder="Tìm lớp, giáo viên..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ width: 200, padding: '7px 12px', fontSize: 13 }}
+              />
+              <select
+                className="input-field"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                style={{ width: 140, padding: '7px 12px', fontSize: 13 }}
               >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    background: cls.color + '15',
-                    color: cls.color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 18,
-                    fontWeight: 800,
-                  }}
-                >
-                  {cls.icon}
-                </div>
-                {cls.pending > 0 && (
-                  <span
-                    style={{
-                      background: '#FEF2F2',
-                      color: '#EF4444',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: '3px 8px',
-                      borderRadius: 20,
-                    }}
-                  >
-                    {cls.pending} bài tập
-                  </span>
-                )}
-              </div>
-              <div
-                style={{
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  color: '#111827',
-                  marginBottom: 2,
-                }}
-              >
-                {cls.name}
-              </div>
-              <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>GV: {cls.teacher}</div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, color: '#6B7280' }}>Tiến độ</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: cls.color }}>{cls.progress}%</span>
-                </div>
-                <div className="progress-bar-track" style={{ height: 6 }}>
-                  <div className="progress-bar-fill" style={{ width: `${cls.progress}%`, background: cls.color }} />
-                </div>
-              </div>
+                <option value="">Tất cả môn</option>
+                {subjects.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
             </div>
-          ))}
+          </div>
+
+          {visible.length === 0 ? (
+            <div className="card" style={{ padding: 48, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
+              Không tìm thấy lớp học phù hợp
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+              {visible.map((cls) => (
+                <ClassCard key={cls.id} cls={cls} onOpen={() => navigate(`/student/classes/${cls.id}`, { state: cls })} />
+              ))}
+            </div>
+          )}
+      </div>
+    </div>
+  );
+}
+
+function ClassCard({ cls, onOpen }: { cls: EnrolledClass; onOpen: () => void }) {
+  return (
+    <div
+      style={{
+        background: '#FFFFFF',
+        border: '1px solid #E5E7EB',
+        borderRadius: 14,
+        padding: 28,
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        minHeight: 260,
+      }}
+      onClick={onOpen}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = cls.color;
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = '#E5E7EB';
+      }}
+    >
+      {/* Top */}
+      <div>
+        <div
+          style={{
+            fontSize: 40,
+            fontWeight: 500,
+            color: cls.color,
+            lineHeight: 1,
+            marginBottom: 32,
+          }}
+        >
+          {cls.icon}
         </div>
+        <div
+          style={{
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            fontSize: 22,
+            fontWeight: 800,
+            color: '#111827',
+            marginBottom: 4,
+          }}
+        >
+          {cls.name}
+        </div>
+        <div style={{ fontSize: 13, color: '#9CA3AF' }}>
+          {cls.subject} · {cls.grade}
+        </div>
+      </div>
+
+      {/* Progress */}
+      <div style={{ marginTop: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <span style={{ fontSize: 13, color: '#6B7280' }}>Tiến độ</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{cls.progress}%</span>
+        </div>
+        <div style={{ height: 4, background: '#F3F4F6', borderRadius: 2, overflow: 'hidden' }}>
+          <div
+            style={{
+              height: '100%',
+              width: `${cls.progress}%`,
+              background: cls.color,
+              borderRadius: 2,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
+        <span
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: cls.color,
+          }}
+        >
+          Vào lớp →
+        </span>
       </div>
     </div>
   );

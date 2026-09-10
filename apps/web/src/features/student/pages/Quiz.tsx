@@ -1,58 +1,18 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-
-const questions = [
-  {
-    id: 1,
-    type: 'single',
-    text: 'Nghiệm của phương trình x² - 5x + 6 = 0 là:',
-    options: ['x = 2 và x = 3', 'x = 1 và x = 6', 'x = -2 và x = -3', 'Không có nghiệm thực'],
-  },
-  {
-    id: 2,
-    type: 'multiple',
-    text: 'Các số nào sau đây là số nguyên tố? (Chọn tất cả đáp án đúng)',
-    options: ['2', '4', '7', '11', '15'],
-  },
-  {
-    id: 3,
-    type: 'fill',
-    text: 'Đạo hàm của hàm số f(x) = x³ là f\'(x) = ___',
-    options: [],
-  },
-  {
-    id: 4,
-    type: 'single',
-    text: 'Giá trị của sin(90°) bằng:',
-    options: ['0', '1', '-1', '0.5'],
-  },
-  {
-    id: 5,
-    type: 'single',
-    text: 'Công thức tính chu vi hình tròn với bán kính r là:',
-    options: ['C = πr', 'C = 2πr', 'C = πr²', 'C = 2πr²'],
-  },
-  {
-    id: 6,
-    type: 'fill',
-    text: 'Giới hạn của (sin x)/x khi x → 0 bằng ___',
-    options: [],
-  },
-  {
-    id: 7,
-    type: 'multiple',
-    text: 'Các đẳng thức nào sau đây đúng? (Chọn tất cả)',
-    options: ['sin²x + cos²x = 1', 'tan x = sin x / cos x', '(a+b)² = a² + b²', 'sin(2x) = 2sin(x)cos(x)'],
-  },
-];
+import { getQuiz } from '@/data/student';
 
 export default function Quiz() {
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, any>>({});
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const state = location.state as { classId?: number; assignmentId?: number } | null;
+  const quiz = getQuiz(state?.assignmentId);
+  const questions = quiz.questions;
 
   const q = questions[current];
   const totalAnswered = Object.keys(answers).length;
@@ -67,7 +27,6 @@ export default function Quiz() {
   };
 
   const onBack = () => {
-    const state = location.state as any;
     if (state?.classId) {
       navigate(`/student/classes/${state.classId}`);
     } else {
@@ -165,7 +124,7 @@ export default function Quiz() {
                 marginBottom: 4,
               }}
             >
-              <span style={{ fontWeight: 600 }}>Kiểm tra chương 3 - Hàm số</span>
+              <span style={{ fontWeight: 600 }}>{quiz.title}</span>
               <span>
                 {current + 1}/{questions.length} câu · {totalAnswered} đã trả lời
               </span>

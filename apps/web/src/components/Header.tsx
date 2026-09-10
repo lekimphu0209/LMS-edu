@@ -26,7 +26,6 @@ const navItems = {
   student: [
     { id: 'student-classes', label: 'Lớp đã đăng ký' },
     { id: 'student-assignments', label: 'Bài tập của tôi' },
-    { id: 'student-progress', label: 'Tiến độ học tập' },
     { id: 'student-feedback', label: 'Gửi góp ý' },
   ],
 }

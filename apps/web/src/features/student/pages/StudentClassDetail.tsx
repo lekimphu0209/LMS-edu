@@ -1,89 +1,33 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-
-const curriculum = [
-  {
-    id: 'c1',
-    title: 'Chương 1: Hàm số và đồ thị',
-    color: '#2563EB',
-    sections: [
-      { id: 's1', title: 'Khái niệm hàm số', done: true, score: 9.0, timeMin: 35 },
-      { id: 's2', title: 'Tính chất của hàm số', done: true, score: 8.5, timeMin: 42 },
-      { id: 's3', title: 'Đồ thị hàm số bậc hai', done: true, score: 7.5, timeMin: 50 },
-      { id: 's4', title: 'Bài tập ôn tập chương 1', done: false, score: null, timeMin: 0 },
-    ],
-  },
-  {
-    id: 'c2',
-    title: 'Chương 2: Đạo hàm',
-    color: '#7C3AED',
-    sections: [
-      { id: 's5', title: 'Định nghĩa đạo hàm', done: true, score: 8.0, timeMin: 38 },
-      { id: 's6', title: 'Quy tắc tính đạo hàm', done: true, score: 7.0, timeMin: 45 },
-      { id: 's7', title: 'Ứng dụng đạo hàm', done: false, score: null, timeMin: 0 },
-      { id: 's8', title: 'Kiểm tra giữa kỳ', done: false, score: null, timeMin: 0 },
-    ],
-  },
-  {
-    id: 'c3',
-    title: 'Chương 3: Tích phân',
-    color: '#F59E0B',
-    sections: [
-      { id: 's9', title: 'Nguyên hàm', done: false, score: null, timeMin: 0 },
-      { id: 's10', title: 'Tích phân xác định', done: false, score: null, timeMin: 0 },
-      { id: 's11', title: 'Ứng dụng tích phân', done: false, score: null, timeMin: 0 },
-    ],
-  },
-];
-
-const allSections = curriculum.flatMap((c) => c.sections);
-const doneSections = allSections.filter((s) => s.done);
-const totalProgress = Math.round((doneSections.length / allSections.length) * 100);
-const avgScore =
-  doneSections
-    .filter((s) => s.score !== null)
-    .reduce((a, s) => a + (s.score ?? 0), 0) /
-  (doneSections.filter((s) => s.score !== null).length || 1);
-const totalTimeMin = doneSections.reduce((a, s) => a + s.timeMin, 0);
-
-const pendingAssignments = [
-  {
-    id: 1,
-    title: 'Kiểm tra chương 3 - Hàm số',
-    type: 'Trắc nghiệm',
-    due: '18/08/2026',
-    daysLeft: 2,
-    questions: 20,
-  },
-  {
-    id: 2,
-    title: 'Bài tập lý thuyết số phức',
-    type: 'Tự luận',
-    due: '20/08/2026',
-    daysLeft: 4,
-    questions: 5,
-  },
-];
-
-const completedAssignments = [
-  { id: 3, title: 'Kiểm tra chương 1 - Hàm số', score: 8.5, submittedDate: '05/08/2026', maxScore: 10 },
-  { id: 4, title: 'Bài tập đạo hàm cơ bản', score: 7.0, submittedDate: '12/08/2026', maxScore: 10 },
-  { id: 5, title: 'Kiểm tra 15 phút', score: 9.0, submittedDate: '14/08/2026', maxScore: 10 },
-];
+import {
+  getEnrolledClass,
+  getCurriculum,
+  getStudentAssignments,
+  type CurriculumSection,
+  type StudentAssignment,
+} from '@/data/student';
 
 export default function StudentClassDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [tab, setTab] = useState('curriculum');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(['c1', 'c2']));
   const cls =
-    (location.state as any) || {
-      id,
-      name: 'Toán 10A',
-      teacher: 'Nguyễn Văn An',
-      subject: 'Toán học',
+    getEnrolledClass(id) ??
+    (location.state as any) ?? {
+      id: Number(id),
+      name: 'Lớp học',
+      teacher: '',
+      subject: '',
     };
+  const curriculum = getCurriculum(cls.id);
+  const classAssignments = getStudentAssignments(cls.name);
+  const pendingAssignments = classAssignments.filter((a) => !a.done);
+  const completedAssignments = classAssignments.filter((a) => a.done);
+  const [tab, setTab] = useState('curriculum');
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set(curriculum.slice(0, 2).map((c) => c.id)),
+  );
 
   const toggleChapter = (chapterId: string) => {
     setExpanded((prev) => {
@@ -94,8 +38,8 @@ export default function StudentClassDetail() {
     });
   };
 
-  const onStartQuiz = () => {
-    navigate('/student/quiz', { state: { classId: id, classData: cls } });
+  const onStartQuiz = (a: StudentAssignment) => {
+    navigate('/student/quiz', { state: { classId: cls.id, assignmentId: a.id } });
   };
 
   return (
@@ -299,7 +243,7 @@ export default function StudentClassDetail() {
 
       {/* Stats tab */}
       {tab === 'stats' && (
-        <StatsTab />
+        <StatsTab sections={curriculum.flatMap((c) => c.sections).filter((s) => s.done)} />
       )}
 
       {/* Homework tab */}
@@ -359,13 +303,13 @@ export default function StudentClassDetail() {
                           color: a.daysLeft <= 2 ? '#EF4444' : '#F59E0B',
                         }}
                       >
-                        ⏰ Còn {a.daysLeft} ngày
+                        ⏰ {a.overdue ? `Quá hạn ${Math.abs(a.daysLeft)} ngày` : `Còn ${a.daysLeft} ngày`}
                       </div>
                     </div>
                     <button
                       className="btn-primary"
                       style={{ padding: '8px 16px', fontSize: 13 }}
-                      onClick={onStartQuiz}
+                      onClick={() => onStartQuiz(a)}
                     >
                       Bắt đầu làm bài
                     </button>
@@ -407,10 +351,10 @@ export default function StudentClassDetail() {
                           fontSize: 24,
                           fontWeight: 800,
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
-                          color: a.score >= 8 ? '#22C55E' : a.score >= 6.5 ? '#F59E0B' : '#EF4444',
+                          color: (a.score ?? 0) >= 8 ? '#22C55E' : (a.score ?? 0) >= 6.5 ? '#F59E0B' : '#EF4444',
                         }}
                       >
-                        {a.score}
+                        {a.score ?? '—'}
                       </div>
                       <div style={{ fontSize: 11, color: '#9CA3AF' }}>/{a.maxScore}</div>
                     </div>
@@ -425,12 +369,16 @@ export default function StudentClassDetail() {
   );
 }
 
-function StatsTab() {
-  const scored = doneSections.filter((s) => s.score !== null);
+function StatsTab({ sections }: { sections: CurriculumSection[] }) {
+  const scored = sections.filter((s) => s.score !== null);
+  const totalTimeMin = sections.reduce((a, s) => a + s.timeMin, 0);
+  const avgScore = scored.length
+    ? scored.reduce((a, s) => a + (s.score ?? 0), 0) / scored.length
+    : 0;
   const scoreData = [
     { label: 'Điểm TB', value: avgScore.toFixed(1), color: '#2563EB', sub: `${scored.length} bài được chấm` },
-    { label: 'Điểm cao nhất', value: Math.max(...scored.map((s) => s.score ?? 0)).toFixed(1), color: '#22C55E', sub: 'Điểm tốt nhất' },
-    { label: 'Điểm thấp nhất', value: Math.min(...scored.map((s) => s.score ?? 0)).toFixed(1), color: '#F59E0B', sub: 'Cần cải thiện' },
+    { label: 'Điểm cao nhất', value: scored.length ? Math.max(...scored.map((s) => s.score ?? 0)).toFixed(1) : '—', color: '#22C55E', sub: 'Điểm tốt nhất' },
+    { label: 'Điểm thấp nhất', value: scored.length ? Math.min(...scored.map((s) => s.score ?? 0)).toFixed(1) : '—', color: '#F59E0B', sub: 'Cần cải thiện' },
     { label: 'Tổng thời gian', value: `${Math.floor(totalTimeMin / 60)}h${totalTimeMin % 60}p`, color: '#7C3AED', sub: 'Đã học' },
   ];
 
@@ -468,7 +416,7 @@ function StatsTab() {
           <h3 className="section-title" style={{ marginBottom: 20 }}>
             Điểm từng mục đã hoàn thành
           </h3>
-          <ScoreChart />
+          <ScoreChart items={scored} />
         </div>
 
         {/* Time column chart */}
@@ -476,15 +424,14 @@ function StatsTab() {
           <h3 className="section-title" style={{ marginBottom: 20 }}>
             Thời gian làm bài (phút)
           </h3>
-          <TimeChart />
+          <TimeChart items={sections.filter((s) => s.timeMin > 0)} totalTimeMin={totalTimeMin} />
         </div>
       </div>
     </div>
   );
 }
 
-function ScoreChart() {
-  const items = doneSections.filter((s) => s.score !== null);
+function ScoreChart({ items }: { items: CurriculumSection[] }) {
   const maxH = 150;
   return (
     <>
@@ -588,9 +535,8 @@ function ScoreChart() {
   );
 }
 
-function TimeChart() {
-  const items = doneSections.filter((s) => s.timeMin > 0);
-  const maxVal = Math.max(...items.map((s) => s.timeMin));
+function TimeChart({ items, totalTimeMin }: { items: CurriculumSection[]; totalTimeMin: number }) {
+  const maxVal = Math.max(...items.map((s) => s.timeMin), 1);
   const maxH = 150;
   return (
     <>

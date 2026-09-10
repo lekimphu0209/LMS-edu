@@ -5,14 +5,12 @@ import { useAuth } from '@/contexts/auth-context';
 const routeToPage: Record<string, string> = {
   '/student/classes': 'student-classes',
   '/student/assignments': 'student-assignments',
-  '/student/progress': 'student-progress',
   '/student/feedback': 'student-feedback',
 };
 
 const pageToRoute: Record<string, string> = {
   'student-classes': '/student/classes',
   'student-assignments': '/student/assignments',
-  'student-progress': '/student/progress',
   'student-feedback': '/student/feedback',
 };
 

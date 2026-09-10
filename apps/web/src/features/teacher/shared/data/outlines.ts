@@ -42,6 +42,39 @@ export const seedOutlines: Outline[] = [
         id: 's3', title: 'Mục 1: Đạo hàm', expanded: true,
         exercises: [{ id: 'e4', title: 'Bài tập tính đạo hàm', questionIds: ['q4', 'q5'] }],
       },
+      {
+        id: 's3b', title: 'Mục 2: Quan hệ song song', expanded: false,
+        exercises: [{ id: 'e4b', title: 'Bài tập hình học không gian', questionIds: ['q9', 'q10'] }],
+      },
+    ],
+  },
+  {
+    id: 'o3', title: 'Lý 12C — Đề cương học kỳ 1', createdAt: '2026-08-12',
+    sections: [
+      {
+        id: 's4', title: 'Mục 1: Dao động cơ', expanded: true,
+        exercises: [
+          { id: 'e5', title: 'Bài tập dao động điều hòa', questionIds: ['q6'] },
+          { id: 'e6', title: 'Kiểm tra nhanh con lắc', questionIds: [] },
+        ],
+      },
+      {
+        id: 's5', title: 'Mục 2: Sóng cơ', expanded: false,
+        exercises: [{ id: 'e7', title: 'Bài tập sóng âm', questionIds: ['q8'] }],
+      },
+    ],
+  },
+  {
+    id: 'o4', title: 'Hóa 10D — Đề cương đầu năm', createdAt: '2026-08-20',
+    sections: [
+      {
+        id: 's6', title: 'Mục 1: Nguyên tử', expanded: true,
+        exercises: [{ id: 'e8', title: 'Bài tập cấu tạo nguyên tử', questionIds: ['q1', 'q2'] }],
+      },
+      {
+        id: 's7', title: 'Mục 2: Bảng tuần hoàn', expanded: false,
+        exercises: [{ id: 'e9', title: 'Luyện tập bảng tuần hoàn', questionIds: [] }],
+      },
     ],
   },
 ]
