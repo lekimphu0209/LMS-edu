@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
+import * as crypto from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -13,8 +14,14 @@ export interface JwtPayload {
   role: string;
 }
 
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 @Injectable()
 export class AuthService {
+  private revokedRefreshTokens = new Set<string>();
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -58,6 +65,10 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     try {
+      if (this.revokedRefreshTokens.has(hashToken(refreshToken))) {
+        throw new UnauthorizedException('Refresh token has been revoked');
+      }
+
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
@@ -73,15 +84,33 @@ export class AuthService {
     }
   }
 
+  async logout(refreshToken: string) {
+    try {
+      this.jwtService.verify(refreshToken, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    this.revokedRefreshTokens.add(hashToken(refreshToken));
+    return { message: 'Logged out successfully' };
+  }
+
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    const valid = await argon2.verify(user.passwordHash, dto.currentPassword);
-    if (!valid) {
-      throw new UnauthorizedException('Current password is incorrect');
+    if (!user.mustChangePassword) {
+      if (!dto.currentPassword) {
+        throw new UnauthorizedException('Current password is required');
+      }
+      const valid = await argon2.verify(user.passwordHash, dto.currentPassword);
+      if (!valid) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
     }
 
     const newHash = await argon2.hash(dto.newPassword);

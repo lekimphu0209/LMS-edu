@@ -41,7 +41,7 @@ export function StatisticsPage() {
     queryKey: ['statistics-page', user?.role],
     queryFn: async () => {
       const endpoint =
-        user?.role === 'ADMIN' ? '/statistics/admin' :
+        user?.role === 'ADMIN' ? '/admin/stats/overview' :
         user?.role === 'TEACHER' ? '/statistics/teacher' :
         '/statistics/student';
       const { data } = await api.get(endpoint);

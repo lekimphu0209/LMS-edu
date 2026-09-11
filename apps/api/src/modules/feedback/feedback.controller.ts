@@ -55,4 +55,15 @@ export class FeedbackController {
   ) {
     return this.feedbackService.markRead(id, isRead);
   }
+
+  @Post(':id/reply')
+  @Roles('TEACHER', 'ADMIN')
+  @ApiOperation({ summary: 'Reply to student feedback' })
+  async reply(
+    @Param('id') id: string,
+    @Body('reply') reply: string,
+    @CurrentUser('id') teacherId: string,
+  ) {
+    return this.feedbackService.reply(id, reply, teacherId);
+  }
 }

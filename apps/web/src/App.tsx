@@ -6,9 +6,10 @@ import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { ProfilePage } from '@/features/auth/pages/ProfilePage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UsersPage } from '@/features/admin/pages/UsersPage';
+import { ClassesPage as AdminClassesPage } from '@/features/admin/pages/ClassesPage';
 import { StatisticsPage } from '@/features/admin/pages/StatisticsPage';
 import { SubmissionsPage } from '@/features/submissions/pages/SubmissionsPage';
-import { FigmaTeacherLayout } from '@/features/teacher/shared/layouts/TeacherLayout';
+import { TeacherLayout } from '@/features/teacher/shared/layouts/TeacherLayout';
 import {
   ClassesPage,
   ClassDetailPage,
@@ -48,10 +49,18 @@ export function App() {
               }
             />
             <Route
-              path="/users"
+              path="/admin"
               element={
                 <ProtectedRoute roles={['ADMIN']}>
                   <UsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/classes"
+              element={
+                <ProtectedRoute roles={['ADMIN']}>
+                  <AdminClassesPage />
                 </ProtectedRoute>
               }
             />
@@ -74,7 +83,7 @@ export function App() {
             <Route
               element={
                 <ProtectedRoute roles={['ADMIN', 'TEACHER']}>
-                  <FigmaTeacherLayout />
+                  <TeacherLayout />
                 </ProtectedRoute>
               }
             >

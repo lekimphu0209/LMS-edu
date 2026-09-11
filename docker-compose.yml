@@ -28,6 +28,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://educonnect:EduConnect@2026@postgres:5432/educonnect?schema=public
+      APP_URL: http://localhost:8003
     ports:
       - "8001:3000"
     networks:
@@ -41,7 +42,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        - VITE_API_URL=${VITE_API_URL:-http://localhost:8001/api}
+        VITE_API_URL: http://localhost:8001/api/v1
     container_name: educonnect-web
     restart: unless-stopped
     ports:

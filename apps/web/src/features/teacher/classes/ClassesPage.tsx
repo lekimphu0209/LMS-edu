@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { teacherClasses, type ClassData } from '@/data/classes'
-
-const myClasses = teacherClasses
+import { useQuery } from '@tanstack/react-query'
+import { getTeacherClasses, type ClassData } from '@/data/classes'
 
 interface Props {
   onNavigate: (page: string, data?: any) => void
@@ -11,6 +10,10 @@ export default function TeacherClasses({ onNavigate }: Props) {
   const [search, setSearch] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const { data: myClasses = [], isLoading, isError, error, refetch } = useQuery<ClassData[]>({
+    queryKey: ['teacher-classes'],
+    queryFn: getTeacherClasses,
+  })
 
   const subjects = [...new Set(myClasses.map(c => c.subject))]
 
@@ -22,6 +25,21 @@ export default function TeacherClasses({ onNavigate }: Props) {
   })
 
   const totalStudents = myClasses.reduce((a, c) => a + c.students, 0)
+
+  if (isLoading) {
+    return <div className="page-container" style={{ paddingTop: 32 }}>Đang tải danh sách lớp...</div>
+  }
+
+  if (isError) {
+    return (
+      <div className="page-container" style={{ paddingTop: 32 }}>
+        <div style={{ color: '#EF4444', marginBottom: 12 }}>
+          Không tải được danh sách lớp: {error instanceof Error ? error.message : 'Lỗi không xác định'}
+        </div>
+        <button className="btn-primary" onClick={() => refetch()}>Thử lại</button>
+      </div>
+    )
+  }
 
   return (
     <div className="page-container" style={{ paddingTop: 32, paddingBottom: 48 }}>

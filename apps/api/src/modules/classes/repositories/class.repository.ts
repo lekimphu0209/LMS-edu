@@ -25,8 +25,8 @@ export interface UpdateClassInput {
 
 export interface ClassRepository {
   findById(id: string): Promise<ClassEntity | null>;
-  findAll(params?: { teacherId?: string; status?: string; skip?: number; take?: number }): Promise<ClassEntity[]>;
+  findAll(params?: { teacherId?: string; status?: string; search?: string; subject?: string; skip?: number; take?: number }): Promise<ClassEntity[]>;
   create(data: CreateClassInput): Promise<ClassEntity>;
   update(id: string, data: UpdateClassInput): Promise<ClassEntity>;
-  count(params?: { teacherId?: string; status?: string }): Promise<number>;
+  count(params?: { teacherId?: string; status?: string; search?: string; subject?: string }): Promise<number>;
 }

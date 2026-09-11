@@ -53,9 +53,9 @@ async function main() {
   const studentPassword = await argon2.hash('Student@123');
   const student = await prisma.user.upsert({
     where: { email: 'student@educonnect.local' },
-    update: {},
+    update: { fullName: 'Lê Hoàng Anh' },
     create: {
-      fullName: 'Le Van Student',
+      fullName: 'Lê Hoàng Anh',
       email: 'student@educonnect.local',
       passwordHash: studentPassword,
       role: 'STUDENT',
@@ -155,29 +155,41 @@ async function main() {
   console.log('Seeded mock students:', mockStudents.length);
 
   // ==================== CLASSES ====================
+  const classData = {
+    id: 'class-10a-math',
+    name: '10A - Toan Hoc',
+    subject: 'Mathematics',
+    grade: 'Lop 10',
+    schedule: 'Thu 2, 4, 6 · 07:30',
+    room: 'P.201',
+    color: '#2563EB',
+    icon: '\u2211',
+    teacherId: teacher.id,
+    status: 'ACTIVE',
+  } as const;
   const class1 = await prisma.class.upsert({
     where: { id: 'class-10a-math' },
-    update: {},
-    create: {
-      id: 'class-10a-math',
-      name: '10A - Toan Hoc',
-      subject: 'Mathematics',
-      teacherId: teacher.id,
-      status: 'ACTIVE',
-    },
+    update: { ...classData },
+    create: { ...classData },
   });
   console.log('Seeded class:', class1.name);
 
+  const class2Data = {
+    id: 'class-10b-physics',
+    name: '10B - Vat Ly',
+    subject: 'Physics',
+    grade: 'Lop 10',
+    schedule: 'Thu 3, 5 · 09:15',
+    room: 'P.305',
+    color: '#22C55E',
+    icon: '\u03C6',
+    teacherId: teacher2.id,
+    status: 'ACTIVE',
+  } as const;
   const class2 = await prisma.class.upsert({
     where: { id: 'class-10b-physics' },
-    update: {},
-    create: {
-      id: 'class-10b-physics',
-      name: '10B - Vat Ly',
-      subject: 'Physics',
-      teacherId: teacher2.id,
-      status: 'ACTIVE',
-    },
+    update: { ...class2Data },
+    create: { ...class2Data },
   });
   console.log('Seeded class:', class2.name);
 
@@ -383,6 +395,8 @@ async function main() {
       id: 'asg-math-001',
       lessonId: lesson1.id,
       title: 'Bai tap chuong 1: Tap hop',
+      type: 'QUIZ',
+      maxScore: 10,
       createdBy: teacher.id,
     },
   });
@@ -423,6 +437,98 @@ async function main() {
     },
   });
   console.log('Seeded assignment target');
+
+  // More assignment targets for class1 and class2
+  const asg2 = await prisma.assignment.upsert({
+    where: { id: 'asg-math-002' },
+    update: {},
+    create: {
+      id: 'asg-math-002',
+      lessonId: lesson2.id,
+      title: 'Bai tap 1.2: Tap hop con',
+      type: 'QUIZ',
+      maxScore: 10,
+      createdBy: teacher.id,
+    },
+  });
+
+  const asg3 = await prisma.assignment.upsert({
+    where: { id: 'asg-math-003' },
+    update: {},
+    create: {
+      id: 'asg-math-003',
+      lessonId: lesson3.id,
+      title: 'Bai tap 2.1: Khai niem ham so',
+      type: 'QUIZ',
+      maxScore: 10,
+      createdBy: teacher.id,
+    },
+  });
+
+  const asg4 = await prisma.assignment.upsert({
+    where: { id: 'asg-math-004' },
+    update: {},
+    create: {
+      id: 'asg-math-004',
+      lessonId: lesson3.id,
+      title: 'Bai tap on tap Vat Ly',
+      type: 'QUIZ',
+      maxScore: 10,
+      createdBy: teacher2.id,
+    },
+  });
+
+  for (const [aid, qids] of [
+    [asg2.id, [q1.id, q3.id]],
+    [asg3.id, [q2.id, q4.id]],
+    [asg4.id, [q1.id, q2.id, q3.id]],
+  ] as [string, string[]][]) {
+    for (let i = 0; i < qids.length; i++) {
+      await prisma.assignmentQuestion.upsert({
+        where: { assignmentId_questionId: { assignmentId: aid, questionId: qids[i] } },
+        update: {},
+        create: { assignmentId: aid, questionId: qids[i], orderIndex: i },
+      });
+    }
+  }
+
+  const target2 = await prisma.assignmentTarget.upsert({
+    where: { id: 'target-asg-math-002-class1' },
+    update: {},
+    create: {
+      id: 'target-asg-math-002-class1',
+      assignmentId: asg2.id,
+      classId: class1.id,
+      unlockDate: new Date('2026-01-01'),
+      dueDate: new Date('2026-09-10'),
+    },
+  });
+
+  const target3 = await prisma.assignmentTarget.upsert({
+    where: { id: 'target-asg-math-003-class1' },
+    update: {},
+    create: {
+      id: 'target-asg-math-003-class1',
+      assignmentId: asg3.id,
+      classId: class1.id,
+      unlockDate: new Date('2026-01-01'),
+      dueDate: new Date('2026-09-20'),
+    },
+  });
+
+  const target4 = await prisma.assignmentTarget.upsert({
+    where: { id: 'target-asg-math-004-class2' },
+    update: {},
+    create: {
+      id: 'target-asg-math-004-class2',
+      assignmentId: asg4.id,
+      classId: class2.id,
+      unlockDate: new Date('2026-01-01'),
+      dueDate: new Date('2026-12-31'),
+    },
+  });
+
+  console.log('Seeded extra assignment targets');
 
   // ==================== SUBMISSION ====================
   const submission = await prisma.submission.upsert({
@@ -490,6 +596,40 @@ async function main() {
     },
   });
   console.log('Seeded learning session');
+
+  // ==================== FEEDBACK ====================
+  await prisma.feedback.upsert({
+    where: { id: 'feedback-001' },
+    update: {},
+    create: {
+      id: 'feedback-001',
+      studentId: student.id,
+      classId: class1.id,
+      teacherId: teacher.id,
+      title: 'Hỏi về bài tập tập hợp',
+      category: 'question',
+      content: 'Em chưa hiểu phần tập hợp con, thầy cô giải thích giúp em.',
+      isRead: false,
+    },
+  });
+
+  await prisma.feedback.upsert({
+    where: { id: 'feedback-002' },
+    update: {},
+    create: {
+      id: 'feedback-002',
+      studentId: student.id,
+      classId: class1.id,
+      teacherId: teacher.id,
+      title: 'Cảm ơn thầy cô',
+      category: 'praise',
+      content: 'Bài giảng rất dễ hiểu, em đã nắm được phần lớn kiến thức.',
+      isRead: true,
+      reply: 'Cảm ơn em, chúc em học tốt!',
+      repliedAt: new Date(),
+    },
+  });
+  console.log('Seeded feedbacks');
 
   console.log('\n=== Seed completed successfully ===');
 }

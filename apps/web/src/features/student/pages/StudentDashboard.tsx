@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/auth-context';
 import { getEnrolledClasses, getStudentAssignments, type EnrolledClass } from '@/data/student';
 
@@ -9,8 +10,24 @@ export default function StudentDashboard() {
   const [search, setSearch] = useState('');
   const [subject, setSubject] = useState('');
 
-  const enrolledClasses = getEnrolledClasses();
-  const assignments = getStudentAssignments();
+  const { data: classes = [], isLoading: loadingClasses } = useQuery({
+    queryKey: ['myClasses'],
+    queryFn: getEnrolledClasses,
+  });
+  const { data: assignments = [], isLoading: loadingAssignments } = useQuery({
+    queryKey: ['myAssignments'],
+    queryFn: () => getStudentAssignments(),
+  });
+
+  if (loadingClasses || loadingAssignments) {
+    return (
+      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
+        Đang tải...
+      </div>
+    );
+  }
+
+  const enrolledClasses = classes;
 
   const totalPending = assignments.filter((a) => !a.done).length;
   const totalOverdue = assignments.filter((a) => a.overdue).length;
@@ -22,7 +39,7 @@ export default function StudentDashboard() {
     ? Math.round(enrolledClasses.reduce((a, c) => a + c.progress, 0) / enrolledClasses.length)
     : 0;
 
-  const subjects = Array.from(new Set(enrolledClasses.map((c) => c.subject)));
+  const subjects = Array.from(new Set(enrolledClasses.map((c: EnrolledClass) => c.subject)));
   const visible = enrolledClasses.filter(
     (c) =>
       (!subject || c.subject === subject) &&

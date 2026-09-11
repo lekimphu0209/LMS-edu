@@ -13,6 +13,12 @@ export class CreateClassDto {
   @ApiProperty()
   @IsString()
   teacherId!: string;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  studentIds?: string[];
 }
 
 export class UpdateClassDto extends PartialType(CreateClassDto) {}

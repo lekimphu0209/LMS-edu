@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react';
-import {
-  CATEGORY_COLORS,
-  CATEGORY_LABELS,
-  type Feedback,
-  type FeedbackCategory,
-} from '@/data/feedback';
+import { useQuery } from '@tanstack/react-query';
+import { CATEGORY_COLORS, CATEGORY_LABELS, type FeedbackCategory } from '@/data/feedback';
 import {
   STUDENT_NAME,
-  getClassTeacher,
   getEnrolledClasses,
   getStudentFeedbacks,
+  createStudentFeedback,
+  type EnrolledClass,
+  type Feedback,
 } from '@/data/student';
 
 const MAX_LEN = 500;
@@ -24,15 +22,34 @@ function todayVn() {
 }
 
 export default function StudentFeedback() {
-  const classes = getEnrolledClasses();
-  const [items, setItems] = useState<Feedback[]>(() => getStudentFeedbacks());
   const [filter, setFilter] = useState<Filter>('all');
 
-  const [className, setClassName] = useState(classes[0]?.name ?? '');
+  const { data: classes = [], isLoading: loadingClasses } = useQuery<EnrolledClass[]>({
+    queryKey: ['myClasses'],
+    queryFn: getEnrolledClasses,
+  });
+  const { data: items = [], isLoading: loadingItems, refetch } = useQuery<Feedback[]>({
+    queryKey: ['myFeedbacks'],
+    queryFn: getStudentFeedbacks,
+  });
+
+  const [className, setClassName] = useState('');
   const [category, setCategory] = useState<FeedbackCategory>('question');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [toast, setToast] = useState(false);
+
+  useEffect(() => {
+    if (classes[0]?.name) setClassName(classes[0].name);
+  }, [classes]);
+
+  if (loadingClasses || loadingItems) {
+    return (
+      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
+        Đang tải...
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -40,7 +57,7 @@ export default function StudentFeedback() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const teacher = className ? getClassTeacher(className) : '';
+  const teacher = classes.find((c) => c.name === className)?.teacher ?? '';
   const canSubmit = !!className && title.trim().length > 0 && message.trim().length > 0;
 
   const replied = items.filter((f) => f.replied).length;
@@ -50,19 +67,17 @@ export default function StudentFeedback() {
     filter === 'all' ? true : filter === 'replied' ? f.replied : !f.replied,
   );
 
-  const submit = () => {
+  const submit = async () => {
     if (!canSubmit) return;
-    const fb: Feedback = {
-      id: Date.now(),
-      student: STUDENT_NAME,
-      class: className,
+    const cls = classes.find((c) => c.name === className);
+    if (!cls) return;
+    await createStudentFeedback({
+      classId: cls.id,
       title: title.trim(),
       category,
-      message: message.trim(),
-      date: todayVn(),
-      replied: false,
-    };
-    setItems((prev) => [fb, ...prev]);
+      content: message.trim(),
+    });
+    await refetch();
     setTitle('');
     setMessage('');
     setCategory('question');

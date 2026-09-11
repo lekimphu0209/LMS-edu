@@ -11,11 +11,18 @@ export class ClassesService {
     this.repository = new PrismaClassRepository(prisma);
   }
 
-  async findAll(teacherId?: string, status?: string, page = 1, limit = 50) {
+  async findAll(
+    teacherId?: string,
+    status?: string,
+    page = 1,
+    limit = 50,
+    search?: string,
+    subject?: string,
+  ) {
     const skip = (page - 1) * limit;
     const [classes, total] = await Promise.all([
-      this.repository.findAll({ teacherId, status, skip, take: limit }),
-      this.repository.count({ teacherId, status }),
+      this.repository.findAll({ teacherId, status, search, subject, skip, take: limit }),
+      this.repository.count({ teacherId, status, search, subject }),
     ]);
     const now = new Date();
     const data = await Promise.all(
@@ -50,13 +57,28 @@ export class ClassesService {
     return cls;
   }
 
+  async findByIdWithStudents(id: string) {
+    return this.findById(id);
+  }
+
   async create(dto: CreateClassDto, createdBy: string) {
-    return this.repository.create({
+    const cls = await this.repository.create({
       name: dto.name,
       subject: dto.subject,
       teacherId: dto.teacherId,
       createdBy,
     });
+
+    if (dto.studentIds && dto.studentIds.length > 0) {
+      const data = dto.studentIds.map((studentId) => ({
+        classId: cls.id,
+        studentId,
+        status: 'ENROLLED' as const,
+      }));
+      await this.prisma.classStudent.createMany({ data, skipDuplicates: true });
+    }
+
+    return cls;
   }
 
   async update(id: string, dto: UpdateClassDto) {
@@ -73,6 +95,12 @@ export class ClassesService {
     const cls = await this.repository.findById(id);
     if (!cls) throw new NotFoundException('Class not found');
     return this.repository.update(id, { status: 'INACTIVE' });
+  }
+
+  async setStatus(id: string, status: 'ACTIVE' | 'INACTIVE') {
+    const cls = await this.repository.findById(id);
+    if (!cls) throw new NotFoundException('Class not found');
+    return this.repository.update(id, { status });
   }
 
   async enrollStudents(classId: string, dto: EnrollStudentsDto) {
@@ -136,6 +164,55 @@ export class ClassesService {
             ? 'CLOSED'
             : 'OPEN',
     }));
+  }
+
+  async getStats(classId: string) {
+    const cls = await this.repository.findById(classId);
+    if (!cls) throw new NotFoundException('Class not found');
+
+    const [totalStudents, targets, submissions] = await Promise.all([
+      this.prisma.classStudent.count({ where: { classId, status: 'ENROLLED' } }),
+      this.prisma.assignmentTarget.findMany({
+        where: { classId },
+        select: { id: true, dueDate: true },
+      }),
+      this.prisma.submission.findMany({
+        where: { assignmentTarget: { classId } },
+        select: { status: true, totalScore: true, studentId: true },
+      }),
+    ]);
+
+    const targetIds = new Set(targets.map((t) => t.id));
+    const ungraded = submissions.filter((s) => ['SUBMITTED', 'LATE'].includes(s.status)).length;
+    const graded = submissions.filter((s) => s.status === 'GRADED' && s.totalScore !== null);
+    const avgScore = graded.length
+      ? Math.round((graded.reduce((a, s) => a + (s.totalScore ?? 0), 0) / graded.length) * 10) / 10
+      : null;
+
+    // Per-student completion → average progress
+    const byStudent = new Map<string, { done: number; total: number }>();
+    for (const s of submissions) {
+      const cur = byStudent.get(s.studentId) ?? { done: 0, total: 0 };
+      cur.total = targetIds.size;
+      if (['SUBMITTED', 'LATE', 'GRADED'].includes(s.status)) cur.done += 1;
+      byStudent.set(s.studentId, cur);
+    }
+    const avgProgress = byStudent.size
+      ? Math.round(
+          [...byStudent.values()].reduce(
+            (a, v) => a + (v.total ? (v.done / v.total) * 100 : 0),
+            0,
+          ) / byStudent.size,
+        )
+      : 0;
+
+    return {
+      totalStudents,
+      totalAssignments: targets.length,
+      ungradedSubmissions: ungraded,
+      avgScore,
+      avgProgress,
+    };
   }
 
   async getStudents(classId: string) {

@@ -11,11 +11,12 @@ export default defineConfig({
   },
   envDir: '../../',
   server: {
-    port: 8003,
+    port: 5173,
     proxy: {
       '/api': {
         target: 'http://localhost:8001',
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/api/v1'),
       },
     },
   },

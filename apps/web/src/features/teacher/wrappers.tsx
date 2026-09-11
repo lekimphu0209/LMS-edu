@@ -1,39 +1,52 @@
-import { useOutletContext, useLocation } from 'react-router-dom';
-import type { BankQuestion } from '@/data/questionBank';
-import type { FigmaTeacherContext } from './shared/layouts/TeacherLayout';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { seedQuestions, type BankQuestion } from '@/data/questionBank';
 import TeacherClasses from './classes/ClassesPage';
 import TeacherClassDetail from './classes/ClassDetailPage';
-import TeacherDashboard from './dashboard/DashboardPage';
 import QuestionBank from './question-bank/QuestionBank';
-import type { Outline } from './shared/data/outlines';
+import { seedOutlines, type Outline } from './shared/data/outlines';
 import CourseBuilder from './curriculum/CourseBuilderPage';
 import Curriculum from './personalized-curriculum/PersonalizedCurriculumPage';
 import AssignmentManager from './assignments/AssignmentManagerPage';
 import CreateAssignment from './assignments/CreateAssignmentPage';
 import TeacherFeedback from './feedback/FeedbackPage';
 
-function useCtx() {
-  return useOutletContext<FigmaTeacherContext>();
+const pageToRoute: Record<string, string> = {
+  'teacher-class-detail': '/classes',
+  'teacher-classes': '/classes',
+  'teacher-qbank': '/questions',
+  'teacher-course-builder': '/curriculum',
+  'teacher-assign': '/assignments',
+  'teacher-assign-create': '/assignments/new',
+  'teacher-curriculum': '/progress',
+  'teacher-feedback': '/feedback',
+};
+
+function usePageNavigate() {
+  const navigate = useNavigate();
+  return (page: string, data?: any) => {
+    const base = pageToRoute[page] || page;
+    if (page === 'teacher-class-detail' && data?.id != null) {
+      navigate(`/classes/${data.id}`, { state: data });
+      return;
+    }
+    navigate(base, data ? { state: data } : undefined);
+  };
 }
 
 export function ClassesPage() {
-  const { onNavigate } = useCtx();
+  const onNavigate = usePageNavigate();
   return <TeacherClasses onNavigate={onNavigate} />;
 }
 
 export function ClassDetailPage() {
-  const { onNavigate } = useCtx();
+  const onNavigate = usePageNavigate();
   const { state } = useLocation();
   return <TeacherClassDetail classData={state} onNavigate={onNavigate} />;
 }
 
-export function TeacherDashboardPage() {
-  const { onNavigate } = useCtx();
-  return <TeacherDashboard onNavigate={onNavigate} />;
-}
-
 export function QuestionBankPage() {
-  const { bankQuestions, setBankQuestions } = useCtx();
+  const [bankQuestions, setBankQuestions] = useState<BankQuestion[]>(seedQuestions);
   const handleAdd = (q: BankQuestion) => setBankQuestions([...bankQuestions, q]);
   const handleDelete = (id: string) => setBankQuestions(bankQuestions.filter((q) => q.id !== id));
   const handleUpdate = (q: BankQuestion) =>
@@ -49,7 +62,8 @@ export function QuestionBankPage() {
 }
 
 export function CourseBuilderPage() {
-  const { bankQuestions, outlines, setOutlines } = useCtx();
+  const [bankQuestions] = useState<BankQuestion[]>(seedQuestions);
+  const [outlines, setOutlines] = useState<Outline[]>(seedOutlines);
   return (
     <CourseBuilder
       bankQuestions={bankQuestions}
@@ -64,12 +78,13 @@ export function CurriculumPage() {
 }
 
 export function AssignmentManagerPage() {
-  const { onNavigate } = useCtx();
-  return <AssignmentManager onCreateNew={() => onNavigate('teacher-assign-create')} />;
+  const navigate = useNavigate();
+  return <AssignmentManager onCreateNew={() => navigate('/assignments/new')} />;
 }
 
 export function CreateAssignmentPage() {
-  const { bankQuestions, outlines } = useCtx();
+  const [bankQuestions] = useState<BankQuestion[]>(seedQuestions);
+  const [outlines] = useState<Outline[]>(seedOutlines);
   return <CreateAssignment bankQuestions={bankQuestions} outlines={outlines} />;
 }
 

@@ -125,6 +125,11 @@ model Class {
   id          String       @id @default(uuid())
   name        String
   subject     String
+  grade       String?
+  schedule    String?
+  room        String?
+  color       String       @default("#2563EB")
+  icon        String       @default("\u2211")
   teacherId   String
   status      ClassStatus  @default(ACTIVE)
   createdBy   String?
@@ -282,6 +287,8 @@ model Assignment {
   id         String   @id @default(uuid())
   lessonId   String?
   title      String
+  type       String   @default("QUIZ")
+  maxScore   Float    @default(10)
   createdBy  String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -444,17 +451,23 @@ model Milestone {
 }
 
 model Feedback {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   studentId    String
   teacherId    String?
+  classId      String?
   lessonId     String?
   assignmentId String?
+  title        String    @default("")
+  category     String    @default("question")
   content      String
-  isRead       Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  reply        String?
+  repliedAt    DateTime?
+  isRead       Boolean   @default(false)
+  createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   @@index([studentId])
   @@index([teacherId])
+  @@index([classId])
   @@index([isRead])
   @@map("feedbacks")
 }

@@ -1,17 +1,31 @@
 import { useState } from 'react'
-import { seedFeedbacks, CATEGORY_LABELS, CATEGORY_COLORS } from '@/data/feedback'
-
-const feedbacks = seedFeedbacks
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { getTeacherFeedbacks, replyFeedback, CATEGORY_LABELS, CATEGORY_COLORS, type Feedback } from '@/data/feedback'
 
 export default function TeacherFeedbackPage() {
-  const [replyTexts, setReplyTexts] = useState<Record<number, string>>({})
+  const { data: feedbacks = [], isLoading, refetch } = useQuery<Feedback[]>({
+    queryKey: ['teacher-feedbacks'],
+    queryFn: getTeacherFeedbacks,
+  })
+  const [replyTexts, setReplyTexts] = useState<Record<string, string>>({})
+  const replyMutation = useMutation({
+    mutationFn: ({ id, text }: { id: string; text: string }) => replyFeedback(id, text),
+    onSuccess: () => {
+      setReplyTexts({})
+      refetch()
+    },
+  })
+
+  if (isLoading) {
+    return <div className="page-container" style={{ paddingTop: 32 }}>Đang tải danh sách góp ý...</div>
+  }
 
   return (
     <div className="page-container" style={{ paddingTop: 32, paddingBottom: 40 }}>
       <h1 className="page-title" style={{ marginBottom: 8 }}>Góp ý từ học sinh</h1>
       <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 24 }}>{feedbacks.filter(f => !f.replied).length} góp ý chưa phản hồi</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {feedbacks.map((fb, i) => (
+        {feedbacks.map((fb) => (
           <div key={fb.id} className="card" style={{ padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -46,11 +60,18 @@ export default function TeacherFeedbackPage() {
                   className="input-field"
                   rows={2}
                   placeholder="Viết phản hồi..."
-                  value={replyTexts[i] || ''}
-                  onChange={e => setReplyTexts({ ...replyTexts, [i]: e.target.value })}
+                  value={replyTexts[fb.id] || ''}
+                  onChange={e => setReplyTexts({ ...replyTexts, [fb.id]: e.target.value })}
                   style={{ marginBottom: 8, resize: 'vertical' }}
                 />
-                <button className="btn-primary" style={{ padding: '7px 16px', fontSize: 13 }}>Gửi phản hồi</button>
+                <button
+                  className="btn-primary"
+                  style={{ padding: '7px 16px', fontSize: 13 }}
+                  disabled={!replyTexts[fb.id]?.trim() || replyMutation.isPending}
+                  onClick={() => replyMutation.mutate({ id: fb.id, text: replyTexts[fb.id] })}
+                >
+                  {replyMutation.isPending ? 'Đang gửi...' : 'Gửi phản hồi'}
+                </button>
               </div>
             )}
           </div>

@@ -21,8 +21,11 @@ export class ClassesController {
     @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @CurrentUser('id') userId?: string,
+    @CurrentUser('role') role?: string,
   ) {
-    return this.classesService.findAll(teacherId, status, Number(page) || 1, Number(limit) || 50);
+    const effectiveTeacherId = role === 'TEACHER' && !teacherId ? userId : teacherId;
+    return this.classesService.findAll(effectiveTeacherId, status, Number(page) || 1, Number(limit) || 50);
   }
 
   @Get(':id')
@@ -50,6 +53,13 @@ export class ClassesController {
   @ApiOperation({ summary: 'Deactivate class' })
   async deactivate(@Param('id') id: string) {
     return this.classesService.deactivate(id);
+  }
+
+  @Get(':id/stats')
+  @Roles('TEACHER', 'ADMIN')
+  @ApiOperation({ summary: 'Class stats: avg progress, ungraded count, avg score' })
+  async getStats(@Param('id') id: string) {
+    return this.classesService.getStats(id);
   }
 
   @Get(':id/students')

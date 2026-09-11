@@ -1,21 +1,7 @@
 import { useState } from 'react'
-
-const students = [
-  { name: 'Lê Hoàng Anh', avatar: 'A', assignments: { hw1: 'submitted', hw2: 'submitted', hw3: 'pending' }, score: 8.5 },
-  { name: 'Trần Minh Bảo', avatar: 'B', assignments: { hw1: 'submitted', hw2: 'late', hw3: 'pending' }, score: 7.2 },
-  { name: 'Nguyễn Thị Châu', avatar: 'C', assignments: { hw1: 'submitted', hw2: 'submitted', hw3: 'submitted' }, score: 9.0 },
-  { name: 'Phạm Văn Đức', avatar: 'D', assignments: { hw1: 'pending', hw2: 'pending', hw3: 'pending' }, score: 5.5 },
-  { name: 'Hoàng Thị Em', avatar: 'E', assignments: { hw1: 'submitted', hw2: 'submitted', hw3: 'late' }, score: 7.8 },
-  { name: 'Vũ Minh Giang', avatar: 'G', assignments: { hw1: 'late', hw2: 'submitted', hw3: 'pending' }, score: 6.5 },
-  { name: 'Lý Thanh Hà', avatar: 'H', assignments: { hw1: 'submitted', hw2: 'submitted', hw3: 'submitted' }, score: 9.5 },
-  { name: 'Đỗ Văn Kỳ', avatar: 'K', assignments: { hw1: 'submitted', hw2: 'pending', hw3: 'pending' }, score: 6.0 },
-]
-
-const assignments = [
-  { id: 'hw1', title: 'Kiểm tra chương 1 - Hàm số', due: '05/08/2026', submitted: 7, total: 8, type: 'Trắc nghiệm' },
-  { id: 'hw2', title: 'Bài tập tự luận chương 2', due: '12/08/2026', submitted: 6, total: 8, type: 'Tự luận' },
-  { id: 'hw3', title: 'Kiểm tra giữa kỳ', due: '20/08/2026', submitted: 1, total: 8, type: 'Trắc nghiệm' },
-]
+import { useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { getTeacherClassDetail, type ClassDetail } from '@/data/classes'
 
 const statusBadge = (s: string) => {
   if (s === 'submitted') return <span className="badge-success" style={{ fontSize: 11 }}>Đã nộp</span>
@@ -26,10 +12,26 @@ const statusBadge = (s: string) => {
 const avatarColors = ['#2563EB', '#7C3AED', '#22C55E', '#F59E0B', '#EF4444', '#06b6d4', '#ec4899', '#14b8a6']
 
 export default function TeacherClassDetail({ classData, onNavigate }: { classData?: any; onNavigate?: (page: string, data?: any) => void }) {
+  const { id } = useParams<{ id: string }>()
   const [tab, setTab] = useState('students')
-  const cls = classData || { name: 'Toán 10A', subject: 'Toán học', students: 38 }
+  const classId = id ?? classData?.id ?? ''
+  const { data: cls, isLoading } = useQuery<ClassDetail>({
+    queryKey: ['teacher-class-detail', classId],
+    queryFn: () => getTeacherClassDetail(classId),
+    enabled: !!classId,
+  })
 
-  const avgScore = students.reduce((a, s) => a + s.score, 0) / students.length
+  if (isLoading) {
+    return <div className="page-container" style={{ paddingTop: 32 }}>Đang tải dữ liệu lớp...</div>
+  }
+
+  if (!cls) {
+    return <div className="page-container" style={{ paddingTop: 32 }}>Không tìm thấy lớp</div>
+  }
+
+  const students = cls.classStudents
+  const assignments = cls.assignments
+  const avgScore = students.length ? students.reduce((a, s) => a + s.score, 0) / students.length : 0
 
   return (
     <div className="page-container" style={{ paddingTop: 32, paddingBottom: 40 }}>
@@ -40,8 +42,8 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
           <h1 className="page-title">{cls.name}</h1>
           <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
             <span className="badge-info">{cls.subject}</span>
-            <span style={{ fontSize: 13, color: '#6B7280' }}>38 học sinh</span>
-            <span style={{ fontSize: 13, color: '#6B7280' }}>3 bài tập đang mở</span>
+            <span style={{ fontSize: 13, color: '#6B7280' }}>{cls.students} học sinh</span>
+            <span style={{ fontSize: 13, color: '#6B7280' }}>{assignments.length} bài tập đang mở</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -69,15 +71,15 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
             <thead>
               <tr>
                 <th>Học sinh</th>
-                <th>{assignments[0].title.slice(0, 20)}...</th>
-                <th>{assignments[1].title.slice(0, 20)}...</th>
-                <th>{assignments[2].title.slice(0, 20)}...</th>
+                {assignments.slice(0, 5).map(a => (
+                  <th key={a.id} title={a.title}>{a.title.slice(0, 18)}{a.title.length > 18 ? '...' : ''}</th>
+                ))}
                 <th>Điểm TB</th>
               </tr>
             </thead>
             <tbody>
               {students.map((s, i) => (
-                <tr key={s.name}>
+                <tr key={s.id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{
@@ -91,9 +93,9 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
                       <span style={{ fontWeight: 500, color: '#111827' }}>{s.name}</span>
                     </div>
                   </td>
-                  <td>{statusBadge(s.assignments.hw1)}</td>
-                  <td>{statusBadge(s.assignments.hw2)}</td>
-                  <td>{statusBadge(s.assignments.hw3)}</td>
+                  {assignments.slice(0, 5).map(a => (
+                    <td key={a.id}>{statusBadge(s.assignments[a.assignmentId] ?? 'pending')}</td>
+                  ))}
                   <td>
                     <span style={{ fontWeight: 700, color: s.score >= 8 ? '#22C55E' : s.score >= 6.5 ? '#F59E0B' : '#EF4444', fontSize: 15 }}>
                       {s.score.toFixed(1)}
@@ -172,7 +174,7 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
             <h3 className="section-title" style={{ marginBottom: 20 }}>Điểm trung bình theo học sinh</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {students.map((s, i) => (
-                <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ width: 100, fontSize: 13, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name.split(' ').slice(-1)[0]}</div>
                   <div className="progress-bar-track" style={{ flex: 1, height: 10 }}>
                     <div className="progress-bar-fill" style={{

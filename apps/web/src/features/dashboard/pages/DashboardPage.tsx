@@ -190,7 +190,7 @@ function AdminDashboard() {
     {
       label: 'Tổng học sinh',
       value: data?.totalStudents,
-      change: '+32 tháng này',
+      change: `${data?.activeUsers ?? 0} người dùng đang hoạt động`,
       icon: Users,
       color: '#2563EB',
       bg: '#EFF6FF',
@@ -198,7 +198,7 @@ function AdminDashboard() {
     {
       label: 'Tổng giáo viên',
       value: data?.totalTeachers,
-      change: '+4 tháng này',
+      change: `${data?.activeClasses ?? 0} lớp đang hoạt động`,
       icon: Users,
       color: '#22C55E',
       bg: '#F0FDF4',
@@ -206,15 +206,15 @@ function AdminDashboard() {
     {
       label: 'Tổng lớp học',
       value: data?.totalClasses,
-      change: 'đang hoạt động',
+      change: `${data?.inactiveClasses ?? 0} lớp đã khóa`,
       icon: GraduationCap,
       color: '#F59E0B',
       bg: '#FFFBEB',
     },
     {
       label: 'Tỉ lệ hoàn thành TB',
-      value: data?.completionRate,
-      change: '+3.2% so với tháng trước',
+      value: data?.completionRate != null ? `${data.completionRate}%` : '—',
+      change: `${data?.pendingSubmissions ?? 0} bài chờ chấm`,
       icon: BarChart3,
       color: '#7C3AED',
       bg: '#F5F3FF',
@@ -223,13 +223,13 @@ function AdminDashboard() {
 
   const summary = [
     {
-      title: 'Quản trị viên',
+      title: 'Người dùng',
       color: '#7C3AED',
       icon: Shield,
       items: [
-        { label: 'Quản lý lớp học', value: `${formatNumber(data?.totalClasses)} lớp` },
-        { label: 'Quản lý giáo viên', value: `${formatNumber(data?.totalTeachers)} người` },
-        { label: 'Quản lý học sinh', value: `${formatNumber(data?.totalStudents)} người` },
+        { label: 'Tổng người dùng', value: `${formatNumber(data?.totalUsers)} người` },
+        { label: 'Đang hoạt động', value: `${formatNumber(data?.activeUsers)} người` },
+        { label: 'Đã bị khóa', value: `${formatNumber(data?.inactiveUsers)} người` },
       ],
     },
     {
@@ -237,19 +237,19 @@ function AdminDashboard() {
       color: '#2563EB',
       icon: BookOpen,
       items: [
-        { label: 'Đang dạy', value: `${formatNumber(data?.totalTeachers)} giáo viên` },
+        { label: 'Tổng giáo viên', value: `${formatNumber(data?.totalTeachers)} người` },
         { label: 'Tổng bài tập đã giao', value: `${formatNumber(data?.totalAssignments)} bài` },
         { label: 'Bài chờ chấm điểm', value: `${formatNumber(data?.pendingSubmissions)} bài` },
       ],
     },
     {
-      title: 'Học sinh',
+      title: 'Học sinh & Lớp học',
       color: '#22C55E',
       icon: Users,
       items: [
-        { label: 'Đang học', value: `${formatNumber(data?.totalStudents)} học sinh` },
-        { label: 'Bài tập chờ nộp', value: `${formatNumber(data?.pendingAssignments)} bài` },
-        { label: 'Tỉ lệ hoàn thành TB', value: `${data?.completionRate ?? '—'}` },
+        { label: 'Tổng học sinh', value: `${formatNumber(data?.totalStudents)} học sinh` },
+        { label: 'HS đã ghi danh', value: `${formatNumber(data?.totalEnrolledStudents)} học sinh` },
+        { label: 'Tỉ lệ hoàn thành TB', value: `${data?.completionRate ?? '—'}%` },
       ],
     },
   ];
@@ -387,8 +387,8 @@ function TeacherDashboard() {
     queryKey: ['teacher-assignments'],
     queryFn: async () => (await api.get('/assignments')).data,
   });
-  const classes = Array.isArray(classesRaw) ? classesRaw : [];
-  const assignments = Array.isArray(assignmentsRaw) ? assignmentsRaw : [];
+  const classes = Array.isArray(classesRaw) ? classesRaw : classesRaw?.data ?? [];
+  const assignments = Array.isArray(assignmentsRaw) ? assignmentsRaw : assignmentsRaw?.data ?? [];
 
   const statCards = [
     {
@@ -436,7 +436,7 @@ function TeacherDashboard() {
             { title: 'Soạn bài', desc: 'Biên soạn chương và bài học', icon: Pencil, color: '#22C55E', path: '/curriculum' },
             { title: 'Giao bài tập', desc: 'Tạo bài tập và giao cho lớp', icon: ClipboardList, color: '#7C3AED', path: '/assignments' },
             { title: 'Giáo trình học sinh', desc: 'Theo dõi tiến độ học sinh', icon: BookOpen, color: '#14B8A6', path: '/progress' },
-            { title: 'Góp ý từ học sinh', desc: 'Xem bài nộp và đánh giá', icon: MessageCircle, color: '#EF4444', path: '/submissions' },
+            { title: 'Góp ý từ học sinh', desc: 'Xem góp ý và phản hồi', icon: MessageCircle, color: '#EF4444', path: '/feedback' },
           ].map((a) => {
             const Icon = a.icon;
             return (
@@ -546,7 +546,7 @@ function StudentDashboard() {
     queryKey: ['student-classes'],
     queryFn: async () => (await api.get('/classes')).data,
   });
-  const classes = Array.isArray(classesRaw) ? classesRaw : [];
+  const classes = Array.isArray(classesRaw) ? classesRaw : classesRaw?.data ?? [];
 
   const statCards = [
     {

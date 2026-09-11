@@ -10,15 +10,16 @@ export class CreateUserDto {
   @IsEmail()
   email!: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  password!: string;
+  password?: string;
 
   @ApiProperty({ enum: ['ADMIN', 'TEACHER', 'STUDENT'] })
   @IsEnum(['ADMIN', 'TEACHER', 'STUDENT'])
   role!: string;
 
-  @ApiProperty({ default: false })
+  @ApiProperty({ required: false, default: true })
   @IsOptional()
   @IsBoolean()
   mustChangePassword?: boolean;
@@ -27,7 +28,8 @@ export class CreateUserDto {
 export class UpdateUserDto extends PartialType(CreateUserDto) {}
 
 export class ResetPasswordDto {
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  newPassword!: string;
+  newPassword?: string;
 }

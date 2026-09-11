@@ -1,33 +1,60 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   getEnrolledClass,
   getCurriculum,
   getStudentAssignments,
   type CurriculumSection,
   type StudentAssignment,
+  type EnrolledClass,
+  type CurriculumChapter,
 } from '@/data/student';
 
 export default function StudentClassDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const cls =
-    getEnrolledClass(id) ??
-    (location.state as any) ?? {
-      id: Number(id),
-      name: 'Lớp học',
-      teacher: '',
-      subject: '',
-    };
-  const curriculum = getCurriculum(cls.id);
-  const classAssignments = getStudentAssignments(cls.name);
+  const locationClass = location.state as EnrolledClass | undefined;
+
+  const { data: cls, isLoading: loadingClass } = useQuery<EnrolledClass | undefined>({
+    queryKey: ['myClass', id],
+    queryFn: () => getEnrolledClass(id),
+    initialData: locationClass,
+  });
+  const { data: curriculum = [], isLoading: loadingCurriculum } = useQuery<CurriculumChapter[]>({
+    queryKey: ['curriculum', id],
+    queryFn: () => getCurriculum(id),
+    enabled: !!id,
+  });
+  const { data: classAssignments = [], isLoading: loadingAssignments } = useQuery<StudentAssignment[]>({
+    queryKey: ['myClassAssignments', cls?.name],
+    queryFn: () => getStudentAssignments(cls?.name),
+    enabled: !!cls?.name,
+  });
+
   const pendingAssignments = classAssignments.filter((a) => !a.done);
   const completedAssignments = classAssignments.filter((a) => a.done);
   const [tab, setTab] = useState('curriculum');
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(curriculum.slice(0, 2).map((c) => c.id)),
   );
+
+  if (loadingClass || loadingCurriculum || loadingAssignments) {
+    return (
+      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
+        Đang tải...
+      </div>
+    );
+  }
+
+  if (!cls) {
+    return (
+      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
+        Không tìm thấy lớp học.
+      </div>
+    );
+  }
 
   const toggleChapter = (chapterId: string) => {
     setExpanded((prev) => {

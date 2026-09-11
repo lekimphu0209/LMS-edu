@@ -22,10 +22,18 @@ export class PrismaClassRepository implements ClassRepository {
     }) as unknown as ClassEntity | null;
   }
 
-  async findAll(params?: { teacherId?: string; status?: string; skip?: number; take?: number }): Promise<ClassEntity[]> {
+  async findAll(params?: { teacherId?: string; status?: string; search?: string; subject?: string; skip?: number; take?: number }): Promise<ClassEntity[]> {
     const where: Record<string, unknown> = {};
     if (params?.teacherId) where.teacherId = params.teacherId;
     if (params?.status) where.status = params.status;
+    if (params?.subject) where.subject = params.subject;
+    if (params?.search) {
+      where.OR = [
+        { name: { contains: params.search, mode: 'insensitive' } },
+        { subject: { contains: params.search, mode: 'insensitive' } },
+        { teacher: { fullName: { contains: params.search, mode: 'insensitive' } } },
+      ];
+    }
 
     return this.prisma.class.findMany({
       where,
@@ -47,10 +55,18 @@ export class PrismaClassRepository implements ClassRepository {
     return this.prisma.class.update({ where: { id }, data }) as unknown as ClassEntity;
   }
 
-  async count(params?: { teacherId?: string; status?: string }): Promise<number> {
+  async count(params?: { teacherId?: string; status?: string; search?: string; subject?: string }): Promise<number> {
     const where: Record<string, unknown> = {};
     if (params?.teacherId) where.teacherId = params.teacherId;
     if (params?.status) where.status = params.status;
+    if (params?.subject) where.subject = params.subject;
+    if (params?.search) {
+      where.OR = [
+        { name: { contains: params.search, mode: 'insensitive' } },
+        { subject: { contains: params.search, mode: 'insensitive' } },
+        { teacher: { fullName: { contains: params.search, mode: 'insensitive' } } },
+      ];
+    }
     return this.prisma.class.count({ where });
   }
 }

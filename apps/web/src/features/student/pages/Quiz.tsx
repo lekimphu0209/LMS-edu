@@ -1,30 +1,62 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getQuiz } from '@/data/student';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { getQuiz, submitQuiz, type QuizData, type QuizAnswer } from '@/data/student';
 
 export default function Quiz() {
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const state = location.state as { classId?: number; assignmentId?: number } | null;
-  const quiz = getQuiz(state?.assignmentId);
-  const questions = quiz.questions;
+  const state = location.state as { classId?: string; assignmentId?: string } | null;
+  const { data: quiz, isLoading } = useQuery<QuizData>({
+    queryKey: ['quiz', state?.assignmentId],
+    queryFn: () => getQuiz(state?.assignmentId ?? ''),
+    enabled: !!state?.assignmentId,
+  });
+  const questions = quiz?.questions ?? [];
+
+  if (isLoading) {
+    return (
+      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
+        Đang tải đề...
+      </div>
+    );
+  }
 
   const q = questions[current];
   const totalAnswered = Object.keys(answers).length;
   const pct = Math.round((current / questions.length) * 100);
 
-  const setAnswer = (val: any) => setAnswers((prev) => ({ ...prev, [q.id]: val }));
+  const setAnswer = (val: string | string[]) => setAnswers((prev) => ({ ...prev, [q.id]: val }));
 
-  const toggleMultiple = (opt: string) => {
-    const cur = answers[q.id] || [];
-    const next = cur.includes(opt) ? cur.filter((x: string) => x !== opt) : [...cur, opt];
+  const toggleMultiple = (optId: string) => {
+    const cur = (answers[q.id] as string[] | undefined) || [];
+    const next = cur.includes(optId) ? cur.filter((x) => x !== optId) : [...cur, optId];
     setAnswer(next);
   };
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      if (!quiz) throw new Error('No quiz');
+      const payload: QuizAnswer[] = quiz.questions.map((q: import('@/data/student').QuizQuestion) => {
+        const ans = answers[q.id];
+        if (q.type === 'fill') {
+          return { questionId: q.id, textAnswer: (ans as string) || '' };
+        }
+        return { questionId: q.id, selectedOptionIds: Array.isArray(ans) ? ans : ans ? [ans] : [] };
+      });
+      return submitQuiz(quiz.targetId, payload);
+    },
+    onSuccess: () => {
+      setShowConfirm(false);
+      setSubmitted(true);
+    },
+  });
 
   const onBack = () => {
     if (state?.classId) {
@@ -124,7 +156,7 @@ export default function Quiz() {
                 marginBottom: 4,
               }}
             >
-              <span style={{ fontWeight: 600 }}>{quiz.title}</span>
+              <span style={{ fontWeight: 600 }}>{quiz?.title ?? 'Bài kiểm tra'}</span>
               <span>
                 {current + 1}/{questions.length} câu · {totalAnswered} đã trả lời
               </span>
@@ -204,11 +236,11 @@ export default function Quiz() {
             {q.type === 'single' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {q.options.map((opt, i) => {
-                  const selected = answers[q.id] === opt;
+                  const selected = answers[q.id] === opt.id;
                   return (
                     <button
-                      key={i}
-                      onClick={() => setAnswer(opt)}
+                      key={opt.id}
+                      onClick={() => setAnswer(opt.id)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -245,7 +277,7 @@ export default function Quiz() {
                       </div>
                       <span style={{ flex: 1 }}>
                         <span style={{ color: '#9CA3AF', marginRight: 8 }}>{String.fromCharCode(65 + i)}.</span>
-                        {opt}
+                        {opt.text}
                       </span>
                     </button>
                   );
@@ -257,11 +289,11 @@ export default function Quiz() {
             {q.type === 'multiple' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {q.options.map((opt, i) => {
-                  const selected = (answers[q.id] || []).includes(opt);
+                  const selected = ((answers[q.id] as string[] | undefined) || []).includes(opt.id);
                   return (
                     <button
-                      key={i}
-                      onClick={() => toggleMultiple(opt)}
+                      key={opt.id}
+                      onClick={() => toggleMultiple(opt.id)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -301,7 +333,7 @@ export default function Quiz() {
                       </div>
                       <span>
                         <span style={{ color: '#9CA3AF', marginRight: 8 }}>{String.fromCharCode(65 + i)}.</span>
-                        {opt}
+                        {opt.text}
                       </span>
                     </button>
                   );
@@ -499,12 +531,13 @@ export default function Quiz() {
               <button
                 className="btn-primary"
                 style={{ background: '#22C55E' }}
+                disabled={submitting || submitMutation.isPending}
                 onClick={() => {
-                  setShowConfirm(false);
-                  setSubmitted(true);
+                  setSubmitting(true);
+                  submitMutation.mutate();
                 }}
               >
-                Nộp bài
+                {submitMutation.isPending ? 'Đang nộp...' : 'Nộp bài'}
               </button>
             </div>
           </div>

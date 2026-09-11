@@ -62,6 +62,15 @@ export class FeedbackService {
     });
   }
 
+  async reply(id: string, reply: string, teacherId: string) {
+    const feedback = await this.prisma.feedback.findUnique({ where: { id } });
+    if (!feedback) throw new NotFoundException('Feedback not found');
+    return this.prisma.feedback.update({
+      where: { id },
+      data: { reply, teacherId, repliedAt: new Date(), isRead: false },
+    });
+  }
+
   async markRead(id: string, isRead: boolean) {
     const feedback = await this.prisma.feedback.findUnique({ where: { id } });
     if (!feedback) throw new NotFoundException('Feedback not found');

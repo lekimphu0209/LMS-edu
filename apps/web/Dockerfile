@@ -15,7 +15,7 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ARG VITE_API_URL=http://localhost:8001/api
+ARG VITE_API_URL=http://localhost:8001/api/v1
 ENV VITE_API_URL=${VITE_API_URL}
 RUN pnpm --filter @educonnect/web build
 

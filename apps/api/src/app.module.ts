@@ -11,6 +11,8 @@ import { SubmissionsModule } from './modules/submissions/submissions.module';
 import { ProgressModule } from './modules/progress/progress.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { StatisticsModule } from './modules/statistics/statistics.module';
+import { StudentsModule } from './modules/students/students.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { StorageModule } from './common/storage/storage.module';
 import { EmailModule } from './common/email/email.module';
 
@@ -28,6 +30,8 @@ import { EmailModule } from './common/email/email.module';
     ProgressModule,
     FeedbackModule,
     StatisticsModule,
+    StudentsModule,
+    AdminModule,
     StorageModule,
     EmailModule,
   ],

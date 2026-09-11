@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   getEnrolledClasses,
   getStudentAssignments,
   type StudentAssignment,
+  type EnrolledClass,
 } from '@/data/student';
 
 type Tab = 'pending' | 'done';
@@ -24,11 +26,27 @@ function dueLabel(a: StudentAssignment) {
 
 export default function StudentAssignments() {
   const navigate = useNavigate();
-  const classes = getEnrolledClasses();
   const [filterClass, setFilterClass] = useState('');
   const [tab, setTab] = useState<Tab>('pending');
 
-  const all = getStudentAssignments(); // already sorted by due date, earliest first
+  const { data: classes = [], isLoading: loadingClasses } = useQuery<EnrolledClass[]>({
+    queryKey: ['myClasses'],
+    queryFn: getEnrolledClasses,
+  });
+  const { data: all = [], isLoading: loadingAssignments } = useQuery<StudentAssignment[]>({
+    queryKey: ['myAssignments'],
+    queryFn: () => getStudentAssignments(),
+  });
+
+  if (loadingClasses || loadingAssignments) {
+    return (
+      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
+        Đang tải...
+      </div>
+    );
+  }
+
+  // already sorted by due date, earliest first
   const assignments = filterClass ? all.filter((a) => a.className === filterClass) : all;
   const pending = assignments.filter((a) => !a.done);
   const completed = assignments.filter((a) => a.done);

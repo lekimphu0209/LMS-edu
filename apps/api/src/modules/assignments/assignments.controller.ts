@@ -54,6 +54,13 @@ export class AssignmentsController {
     return this.assignmentsService.createTarget(id, dto);
   }
 
+  @Get(':id/submissions')
+  @Roles('TEACHER', 'ADMIN')
+  @ApiOperation({ summary: 'List submissions for this assignment' })
+  async getSubmissions(@Param('id') id: string) {
+    return this.assignmentsService.getSubmissions(id);
+  }
+
   @Get(':id/targets')
   @ApiOperation({ summary: 'Get assignment targets' })
   async getTargets(@Param('id') id: string) {

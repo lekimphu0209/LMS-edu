@@ -12,11 +12,12 @@ import { Badge } from '@/components/ui/badge';
 const roleNavItems: Record<string, { label: string; icon: typeof LayoutDashboard; path: string }[]> = {
   ADMIN: [
     { label: 'Tổng quan', icon: LayoutDashboard, path: '/dashboard' },
-    { label: 'Học sinh', icon: Users, path: '/users?role=STUDENT' },
-    { label: 'Giáo viên', icon: Users, path: '/users?role=TEACHER' },
-    { label: 'Lớp học', icon: GraduationCap, path: '/classes' },
+    { label: 'Học sinh', icon: Users, path: '/admin?role=STUDENT' },
+    { label: 'Giáo viên', icon: Users, path: '/admin?role=TEACHER' },
+    { label: 'Lớp học', icon: GraduationCap, path: '/admin/classes' },
   ],
   TEACHER: [
+    { label: 'Tổng quan', icon: LayoutDashboard, path: '/dashboard' },
     { label: 'Lớp của tôi', icon: GraduationCap, path: '/classes' },
     { label: 'Ngân hàng câu hỏi', icon: FileQuestion, path: '/questions' },
     { label: 'Soạn bài', icon: Pencil, path: '/curriculum' },
