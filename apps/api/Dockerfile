@@ -40,4 +40,4 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 WORKDIR /app/apps/api
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "npx prisma db push --schema=/app/prisma/schema.prisma --skip-generate && node dist/main.js"]

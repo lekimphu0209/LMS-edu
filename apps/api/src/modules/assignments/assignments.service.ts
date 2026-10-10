@@ -66,7 +66,16 @@ export class AssignmentsService {
   async delete(id: string) {
     const assignment = await this.prisma.assignment.findUnique({ where: { id } });
     if (!assignment) throw new NotFoundException('Assignment not found');
-    await this.prisma.assignment.delete({ where: { id } });
+    try {
+      await this.prisma.assignment.delete({ where: { id } });
+    } catch (e: any) {
+      if (e?.code === 'P2003') {
+        throw new BadRequestException(
+          'Không thể xóa bài tập đã có bài nộp hoặc dữ liệu liên quan.',
+        );
+      }
+      throw e;
+    }
     return { message: 'Assignment deleted' };
   }
 

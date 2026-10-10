@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateQuestionDto, UpdateQuestionDto } from './dto/question.dto';
 
@@ -94,7 +94,16 @@ export class QuestionBankService {
   async delete(id: string) {
     const question = await this.prisma.question.findUnique({ where: { id } });
     if (!question) throw new NotFoundException('Question not found');
-    await this.prisma.question.delete({ where: { id } });
+    try {
+      await this.prisma.question.delete({ where: { id } });
+    } catch (e: any) {
+      if (e?.code === 'P2003') {
+        throw new BadRequestException(
+          'Không thể xóa câu hỏi đã có dữ liệu liên quan (đáp án, bài nộp).',
+        );
+      }
+      throw e;
+    }
     return { message: 'Question deleted' };
   }
 }

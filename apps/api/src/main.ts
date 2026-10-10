@@ -10,7 +10,10 @@ async function bootstrap() {
 
   app.use(helmet());
   app.enableCors({
-    origin: process.env.APP_URL || 'http://localhost:5173',
+    origin: [
+      process.env.APP_URL || 'http://localhost:5173',
+      /^https:\/\/.*\.vercel\.app$/,
+    ],
     credentials: true,
   });
 
