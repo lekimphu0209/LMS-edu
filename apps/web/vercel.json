@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://quote-mistakes-donna-supplier.trycloudflare.com/api/v1/:path*"
+      "destination": "https://educonnect-api-me95.onrender.com/api/v1/:path*"
     },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
