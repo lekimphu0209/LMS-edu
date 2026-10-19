@@ -1,5 +1,6 @@
-# Render Blueprint — deploy LMS API + Postgres in one click
+# Render Blueprint — deploy LMS API (Postgres hosted on Supabase free, no expiry)
 # Dashboard: New > Blueprint Instance > connect GitHub repo LMS-edu
+# After apply, set env var DATABASE_URL = Supabase connection string (Session pooler URI)
 services:
   - type: web
     name: educonnect-api
@@ -10,9 +11,7 @@ services:
     healthCheckPath: /api/docs
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: educonnect-db
-          property: connectionString
+        sync: false
       - key: PORT
         value: "3000"
       - key: APP_URL
@@ -31,9 +30,3 @@ services:
         value: admin@educonnect.local
       - key: ADMIN_PASSWORD
         value: Admin@123
-
-databases:
-  - name: educonnect-db
-    plan: free
-    databaseName: educonnect
-    user: educonnect
