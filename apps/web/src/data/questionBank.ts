@@ -1,4 +1,5 @@
 // Shared question bank types and data
+import { api } from '@/lib/api'
 
 export type QType = 'single' | 'multiple' | 'short'
 export type Difficulty = 'easy' | 'medium' | 'hard'
@@ -115,3 +116,79 @@ export const seedQuestions: BankQuestion[] = [
     correct: [1, 2, 3], createdAt: '2026-08-18',
   },
 ]
+
+// ── API integration (/question-bank) ─────────────────────────────
+
+const TYPE_TO_API: Record<QType, string> = { single: 'SINGLE', multiple: 'MULTI', short: 'FILL_BLANK' }
+const DIFF_TO_API: Record<Difficulty, string> = { easy: 'EASY', medium: 'MEDIUM', hard: 'HARD' }
+
+export function apiToBankQuestion(q: any): BankQuestion {
+  const type: QType = q.type === 'SINGLE' ? 'single' : q.type === 'MULTI' ? 'multiple' : 'short'
+  const difficulty: Difficulty = q.difficulty === 'EASY' ? 'easy' : q.difficulty === 'HARD' ? 'hard' : 'medium'
+  const options: any[] = q.options ?? []
+  const correctIdx = options
+    .map((o: any, i: number) => (o.isCorrect ? i : -1))
+    .filter((i: number) => i >= 0)
+  return {
+    id: q.id,
+    text: q.questionText,
+    imageUrl: q.questionImageUrl || undefined,
+    type,
+    difficulty,
+    class: 'Lớp 12',
+    area: 'Đại số',
+    topic: q.subject ?? '',
+    answers: type === 'short' ? [] : options.map((o: any) => o.optionText),
+    correct:
+      type === 'short'
+        ? (options.find((o: any) => o.isCorrect)?.optionText ?? '')
+        : type === 'multiple'
+          ? correctIdx
+          : correctIdx[0] ?? 0,
+    shortAnswers:
+      type === 'short'
+        ? options.filter((o: any) => o.isCorrect).map((o: any) => o.optionText)
+        : undefined,
+    createdAt: q.createdAt?.slice(0, 10) ?? '',
+  }
+}
+
+function bankToDto(q: BankQuestion) {
+  return {
+    subject: q.topic || 'Toán',
+    type: TYPE_TO_API[q.type],
+    questionText: q.text,
+    questionImageUrl: q.imageUrl || null,
+    difficulty: DIFF_TO_API[q.difficulty],
+    defaultScore: 1,
+    options:
+      q.type === 'short'
+        ? []
+        : q.answers.map((text, i) => ({
+            optionText: text,
+            isCorrect: Array.isArray(q.correct) ? q.correct.includes(i) : q.correct === i,
+            orderIndex: i,
+          })),
+  }
+}
+
+export async function getBankQuestions(): Promise<BankQuestion[]> {
+  const { data } = await api.get('/question-bank', { params: { limit: 200 } })
+  const items = data?.data ?? (Array.isArray(data) ? data : [])
+  return items.map(apiToBankQuestion)
+}
+
+export async function createBankQuestion(q: BankQuestion): Promise<BankQuestion> {
+  const { data } = await api.post('/question-bank', bankToDto(q))
+  return apiToBankQuestion(data)
+}
+
+export async function updateBankQuestion(q: BankQuestion): Promise<BankQuestion> {
+  const { options: _ignored, ...dto } = bankToDto(q)
+  const { data } = await api.patch(`/question-bank/${q.id}`, dto)
+  return apiToBankQuestion({ ...data, options: data.options ?? [] })
+}
+
+export async function deleteBankQuestion(id: string): Promise<void> {
+  await api.delete(`/question-bank/${id}`)
+}

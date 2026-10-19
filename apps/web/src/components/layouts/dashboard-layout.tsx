@@ -60,6 +60,13 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const navItems = user ? roleNavItems[user.role] || [] : [];
   const config = user ? roleConfig[user.role] : roleConfig.STUDENT;
 
+  const isNavActive = (path: string) => {
+    if (path.includes('?')) {
+      return `${location.pathname}${location.search}` === path;
+    }
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
+
   const initials = user?.fullName
     ?.split(' ')
     .map((w) => w[0])
@@ -85,7 +92,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           {/* Nav — desktop */}
           <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex">
             {navItems.map((item) => {
-              const isActive = `${location.pathname}${location.search}` === item.path;
+              const isActive = isNavActive(item.path);
               return (
                 <Link
                   key={item.path}
@@ -196,7 +203,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             </div>
             <nav className="space-y-1 px-4 py-3">
               {navItems.map((item) => {
-                const isActive = `${location.pathname}${location.search}` === item.path;
+                const isActive = isNavActive(item.path);
                 return (
                   <Link
                     key={item.path}

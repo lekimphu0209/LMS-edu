@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { seedQuestions, type BankQuestion } from '@/data/questionBank';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  seedQuestions,
+  type BankQuestion,
+  getBankQuestions,
+  createBankQuestion,
+  updateBankQuestion,
+  deleteBankQuestion,
+} from '@/data/questionBank';
 import TeacherClasses from './classes/ClassesPage';
 import TeacherClassDetail from './classes/ClassDetailPage';
 import QuestionBank from './question-bank/QuestionBank';
@@ -46,17 +54,28 @@ export function ClassDetailPage() {
 }
 
 export function QuestionBankPage() {
-  const [bankQuestions, setBankQuestions] = useState<BankQuestion[]>(seedQuestions);
-  const handleAdd = (q: BankQuestion) => setBankQuestions([...bankQuestions, q]);
-  const handleDelete = (id: string) => setBankQuestions(bankQuestions.filter((q) => q.id !== id));
-  const handleUpdate = (q: BankQuestion) =>
-    setBankQuestions(bankQuestions.map((x) => (x.id === q.id ? q : x)));
+  const queryClient = useQueryClient();
+  const { data: bankQuestions = seedQuestions, isLoading, isError } = useQuery<BankQuestion[]>({
+    queryKey: ['bank-questions'],
+    queryFn: getBankQuestions,
+    retry: 1,
+  });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['bank-questions'] });
+  const addMutation = useMutation({ mutationFn: createBankQuestion, onSuccess: invalidate });
+  const updateMutation = useMutation({ mutationFn: updateBankQuestion, onSuccess: invalidate });
+  const deleteMutation = useMutation({
+    mutationFn: deleteBankQuestion,
+    onSuccess: invalidate,
+    onError: (e: any) =>
+      window.alert(e?.response?.data?.message ?? 'Không xóa được câu hỏi.'),
+  });
+
   return (
     <QuestionBank
       questions={bankQuestions}
-      onAdd={handleAdd}
-      onDelete={handleDelete}
-      onUpdate={handleUpdate}
+      onAdd={(q) => addMutation.mutate(q)}
+      onDelete={(id) => deleteMutation.mutate(id)}
+      onUpdate={(q) => updateMutation.mutate(q)}
     />
   );
 }
