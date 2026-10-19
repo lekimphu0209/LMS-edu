@@ -1,7 +1,13 @@
 import axios from 'axios';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
-const API_BASE_URL = typeof rawApiUrl === 'string' ? rawApiUrl.replace(/^["']|["']$/g, '') : '/api';
+// Always use the same-origin /api path; local dev proxies it in vite.config.ts
+// and Vercel proxies it via vercel.json rewrites. VITE_API_URL only overrides
+// when explicitly set to a non-empty value.
+const rawApiUrl = import.meta.env.VITE_API_URL;
+const API_BASE_URL =
+  typeof rawApiUrl === 'string' && rawApiUrl.trim() !== ''
+    ? rawApiUrl.trim().replace(/^["']|["']$/g, '')
+    : '/api';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
