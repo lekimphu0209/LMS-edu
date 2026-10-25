@@ -34,14 +34,14 @@ export default function Curriculum() {
   }
 
   return (
-    <div className="page-container" style={{ paddingTop: 32, paddingBottom: 40 }}>
-      <div style={{ marginBottom: 28 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 40 }}>
+      <div style={{ marginBottom: 18 }}>
         <h1 className="page-title">Giáo trình học sinh</h1>
         <p style={{ color: '#6B7280', fontSize: 14, marginTop: 4 }}>Xây dựng lộ trình học tập cá nhân hóa cho từng học sinh</p>
       </div>
 
       {/* Student selector */}
-      <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+      <div className="card" style={{ padding: 20, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Chọn học sinh</label>
@@ -67,7 +67,7 @@ export default function Curriculum() {
       {selectedStudent && (
         <>
           {/* Progress summary */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 18 }}>
             {[
               { label: 'Tổng modules', value: items.length, color: '#2563EB' },
               { label: 'Đã hoàn thành', value: items.filter(i => i.done).length, color: '#22C55E' },

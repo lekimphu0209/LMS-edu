@@ -380,11 +380,11 @@ function TeacherDashboard() {
     queryFn: async () => (await api.get('/statistics/teacher')).data,
   });
   const { data: classesRaw } = useQuery({
-    queryKey: ['teacher-classes'],
+    queryKey: ['dashboard-classes'],
     queryFn: async () => (await api.get('/classes')).data,
   });
   const { data: assignmentsRaw } = useQuery({
-    queryKey: ['teacher-assignments'],
+    queryKey: ['dashboard-assignments'],
     queryFn: async () => (await api.get('/assignments')).data,
   });
   const classes = Array.isArray(classesRaw) ? classesRaw : classesRaw?.data ?? [];
@@ -410,7 +410,7 @@ function TeacherDashboard() {
   return (
     <div className="space-y-7">
       <div>
-        <h1 className="page-title">Xin chào, {user?.fullName}! 👋</h1>
+        <h1 className="page-title">Xin chào, {user?.fullName}</h1>
         <p className="mt-1 text-sm text-[#6B7280]">
           Bạn có {stats?.pendingSubmissions ?? 0} bài nộp chờ chấm điểm hôm nay
         </p>
@@ -462,76 +462,6 @@ function TeacherDashboard() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="section-title">Lớp học của tôi</h2>
-            <button className="btn-ghost py-1.5 text-xs" onClick={() => navigate('/classes')}>
-              Xem tất cả →
-            </button>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {classes.slice(0, 4).map((cls: any) => (
-              <div
-                key={cls.id}
-                className="card cursor-pointer p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-                onClick={() => navigate(`/classes/${cls.id}`)}
-              >
-                <div className="mb-3 flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EFF6FF] text-lg font-extrabold text-[#2563EB] font-display">
-                    {cls.name?.[0] ?? 'L'}
-                  </div>
-                  <span className="rounded-full bg-[#FEF2F2] px-2 py-0.5 text-[11px] font-bold text-[#EF4444]">
-                    0 chờ chấm
-                  </span>
-                </div>
-                <div className="font-display text-base font-bold text-[#111827]">{cls.name}</div>
-                <div className="text-sm text-[#6B7280]">{cls.subject || 'Môn học'}</div>
-                <div className="mt-3 flex items-center gap-1.5 text-sm text-[#6B7280]">
-                  <Users className="h-4 w-4" /> {cls._count?.students ?? cls.students ?? 0} học sinh
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="section-title">Bài tập gần đây</h2>
-            <button className="btn-ghost py-1.5 text-xs" onClick={() => navigate('/assignments')}>
-              Tất cả
-            </button>
-          </div>
-          <div className="card overflow-hidden">
-            {assignments.slice(0, 3).map((a: any, i: number) => (
-              <div
-                key={a.id ?? i}
-                className={`p-5 ${i < 2 ? 'border-b border-gray-100' : ''}`}
-              >
-                <div className="mb-1.5 flex justify-between">
-                  <div className="text-sm font-semibold text-[#111827]">{a.title}</div>
-                  <span className="text-xs text-[#6B7280]">
-                    {a.assignedTo?.length ?? 0}/{a.assignedTo?.length ?? 0}
-                  </span>
-                </div>
-                <div className="mb-3 text-xs text-[#6B7280]">
-                  {a.class?.name ?? ''} · Hạn:{' '}
-                  {a.dueDate ? new Date(a.dueDate).toLocaleDateString('vi-VN') : '—'}
-                </div>
-                <div className="progress-bar-track h-1.5">
-                  <div className="progress-bar-fill" style={{ width: '0%' }} />
-                </div>
-                <div className="mt-1 text-[11px] text-[#9CA3AF]">0% đã nộp</div>
-              </div>
-            ))}
-            <div className="p-5">
-              <button className="btn-primary w-full py-2.5 text-xs" onClick={() => navigate('/assignments')}>
-                + Giao bài tập mới
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -543,7 +473,7 @@ function StudentDashboard() {
     queryFn: async () => (await api.get('/statistics/student')).data,
   });
   const { data: classesRaw } = useQuery({
-    queryKey: ['student-classes'],
+    queryKey: ['dashboard-student-classes'],
     queryFn: async () => (await api.get('/classes')).data,
   });
   const classes = Array.isArray(classesRaw) ? classesRaw : classesRaw?.data ?? [];
@@ -568,7 +498,7 @@ function StudentDashboard() {
   return (
     <div className="space-y-7">
       <div>
-        <h1 className="page-title">Xin chào, {user?.fullName}! 🎓</h1>
+        <h1 className="page-title">Xin chào, {user?.fullName}</h1>
         <p className="mt-1 text-sm text-[#6B7280]">
           Bạn có {stats?.pendingAssignments ?? 0} bài tập cần hoàn thành. Cố lên nhé!
         </p>

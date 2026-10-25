@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PageBreadcrumb } from './page-breadcrumb';
 
 const roleNavItems: Record<string, { label: string; icon: typeof LayoutDashboard; path: string }[]> = {
   ADMIN: [
@@ -29,7 +30,6 @@ const roleNavItems: Record<string, { label: string; icon: typeof LayoutDashboard
     { label: 'Lớp học', icon: GraduationCap, path: '/student/classes' },
     { label: 'Bài tập', icon: ClipboardList, path: '/student/assignments' },
     { label: 'Góp ý', icon: MessageCircle, path: '/student/feedback' },
-    { label: 'Hồ sơ', icon: UserCircle, path: '/profile' },
   ],
 };
 
@@ -78,11 +78,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-muted/30">
       {/* Header — fixed top */}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white">
-        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-4 px-4 lg:px-6">
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between gap-4 px-4 lg:px-6">
           {/* Logo */}
           <Link to="/dashboard" className="flex shrink-0 items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#2563EB] text-white">
-              <GraduationCap className="h-5 w-5" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2563EB] text-white">
+              <GraduationCap className="h-4 w-4" />
             </div>
             <span className="font-display hidden text-lg font-extrabold text-[#111827] xl:inline">
               EduConnect
@@ -112,17 +112,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </nav>
 
           {/* Right: role + user */}
-          <div className="flex shrink-0 items-center gap-3">
-            <span
-              className={cn(
-                'hidden rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide sm:inline-block',
-                config.light,
-                config.text,
-              )}
-            >
-              {config.title}
-            </span>
-
+          <div className="flex shrink-0 items-center gap-2">
             {/* Mobile menu button */}
             <button
               className="flex items-center justify-center rounded-md p-2 lg:hidden"
@@ -135,7 +125,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             <div className="relative">
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="flex items-center gap-2 rounded-[10px] border border-gray-200 bg-white px-2.5 py-1.5 text-sm transition-colors hover:bg-[#F9FAFB]"
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-[#F9FAFB]"
               >
                 <div
                   className={cn(
@@ -191,16 +181,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         {/* Mobile menu */}
         {mobileOpen && (
           <div className="border-t border-gray-100 bg-white lg:hidden">
-            <div className="px-4 pt-3">
-              <span
-                className={cn(
-                  'inline-block rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white',
-                  config.accent,
-                )}
-              >
-                {config.title}
-              </span>
-            </div>
             <nav className="space-y-1 px-4 py-3">
               {navItems.map((item) => {
                 const isActive = isNavActive(item.path);
@@ -242,7 +222,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       </header>
 
       {/* Main content */}
-      <main className="mx-auto max-w-[1440px] p-6 lg:p-10">{children}</main>
+      <main className="mx-auto max-w-[1440px] p-4 lg:p-6">
+        <PageBreadcrumb homePath={user?.role === 'STUDENT' ? '/student/classes' : '/dashboard'} />
+        {children}
+      </main>
     </div>
   );
 }

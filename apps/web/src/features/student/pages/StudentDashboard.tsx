@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BookOpen, ClipboardList, Star, TrendingUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/auth-context';
 import { getEnrolledClasses, getStudentAssignments, type EnrolledClass } from '@/data/student';
@@ -21,7 +22,7 @@ export default function StudentDashboard() {
 
   if (loadingClasses || loadingAssignments) {
     return (
-      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
+      <div className="page-container" style={{ paddingTop: 20, color: '#6B7280' }}>
         Đang tải...
       </div>
     );
@@ -53,18 +54,18 @@ export default function StudentDashboard() {
   const dateStr = `${weekday}, ${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
 
   return (
-    <div className="page-container" style={{ paddingTop: 32, paddingBottom: 40 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 40 }}>
       {/* Greeting */}
       <div
         style={{
           display: 'flex',
           alignItems: 'flex-end',
           justifyContent: 'space-between',
-          marginBottom: 24,
+          marginBottom: 18,
         }}
       >
         <div>
-          <h1 className="page-title">Xin chào, {user?.fullName || 'Học sinh'}! 🎓</h1>
+          <h1 className="page-title">Xin chào, {user?.fullName || 'Học sinh'}</h1>
           <p style={{ color: '#6B7280', fontSize: 14, marginTop: 4 }}>
             {totalPending > 0
               ? `Bạn có ${totalPending} bài tập cần hoàn thành${totalOverdue ? `, ${totalOverdue} bài đã quá hạn` : ''}. Cố lên nhé!`
@@ -75,28 +76,27 @@ export default function StudentDashboard() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 18 }}>
         {[
-          { label: 'Lớp đã đăng ký', value: enrolledClasses.length, color: '#2563EB', bg: '#EFF6FF', icon: '📚' },
-          { label: 'Bài tập chờ nộp', value: totalPending, color: '#EF4444', bg: '#FEF2F2', icon: '📝' },
-          { label: 'Điểm trung bình', value: avgScore, color: '#22C55E', bg: '#F0FDF4', icon: '⭐' },
-          { label: 'Tiến độ học tập', value: `${overallProgress}%`, color: '#7C3AED', bg: '#F5F3FF', icon: '📈' },
+          { label: 'Lớp đã đăng ký', value: enrolledClasses.length, color: '#2563EB', bg: '#EFF6FF', icon: BookOpen },
+          { label: 'Bài tập chờ nộp', value: totalPending, color: '#EF4444', bg: '#FEF2F2', icon: ClipboardList },
+          { label: 'Điểm trung bình', value: avgScore, color: '#22C55E', bg: '#F0FDF4', icon: Star },
+          { label: 'Tiến độ học tập', value: `${overallProgress}%`, color: '#7C3AED', bg: '#F5F3FF', icon: TrendingUp },
         ].map((s) => (
           <div key={s.label} className="stat-card" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div
               style={{
                 background: s.bg,
-                width: 48,
-                height: 48,
-                borderRadius: 12,
+                width: 44,
+                height: 44,
+                borderRadius: 10,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-                fontSize: 22,
               }}
             >
-              {s.icon}
+              <s.icon size={20} color={s.color} />
             </div>
             <div>
               <div

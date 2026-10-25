@@ -15,6 +15,7 @@ import {
   ClassDetailPage,
   QuestionBankPage,
   CourseBuilderPage,
+  CurriculumDetailPage,
   CurriculumPage,
   AssignmentManagerPage,
   CreateAssignmentPage,
@@ -90,6 +91,7 @@ export function App() {
               <Route path="/classes" element={<ClassesPage />} />
               <Route path="/classes/:id" element={<ClassDetailPage />} />
               <Route path="/curriculum" element={<CourseBuilderPage />} />
+              <Route path="/curriculum/:id" element={<CurriculumDetailPage />} />
               <Route path="/questions" element={<QuestionBankPage />} />
               <Route path="/assignments" element={<AssignmentManagerPage />} />
               <Route path="/assignments/new" element={<CreateAssignmentPage />} />

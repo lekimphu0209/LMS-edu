@@ -43,19 +43,19 @@ export default function StudentFeedback() {
     if (classes[0]?.name) setClassName(classes[0].name);
   }, [classes]);
 
-  if (loadingClasses || loadingItems) {
-    return (
-      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
-        Đang tải...
-      </div>
-    );
-  }
-
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(false), 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  if (loadingClasses || loadingItems) {
+    return (
+      <div className="page-container" style={{ paddingTop: 20, color: '#6B7280' }}>
+        Đang tải...
+      </div>
+    );
+  }
 
   const teacher = classes.find((c) => c.name === className)?.teacher ?? '';
   const canSubmit = !!className && title.trim().length > 0 && message.trim().length > 0;
@@ -86,9 +86,9 @@ export default function StudentFeedback() {
   };
 
   return (
-    <div className="page-container" style={{ paddingTop: 32, paddingBottom: 40 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 40 }}>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 18 }}>
         <h1 className="page-title" style={{ marginBottom: 4 }}>
           Gửi góp ý
         </h1>
@@ -103,7 +103,7 @@ export default function StudentFeedback() {
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 14,
-          marginBottom: 24,
+          marginBottom: 18,
         }}
       >
         {[

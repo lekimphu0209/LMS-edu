@@ -34,8 +34,8 @@ export default function QuestionBank({ questions, onAdd, onDelete, onUpdate }: P
   const clearFilters = () => { setSearchInput(''); setSearch(''); setFilterType(''); setFilterDiff('') }
 
   return (
-    <div className="page-container" style={{ paddingTop: 32, paddingBottom: 48 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 48 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
           <h1 className="page-title">Ngân hàng câu hỏi</h1>
           <p style={{ color: '#6B7280', fontSize: 14, marginTop: 4 }}>Tổng cộng <strong style={{ color: '#111827' }}>{questions.length}</strong> câu hỏi</p>

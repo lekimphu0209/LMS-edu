@@ -6,17 +6,17 @@ import { seedQuestions, type BankQuestion } from './questionBank'
 import { seedOutlines } from '@/features/teacher/shared/data/outlines'
 import { teacherClasses } from './classes'
 import { seedAssignments, fmtDate, type Assignment } from './assignments'
-import { seedFeedbacks, type FeedbackCategory } from './feedback'
+import { seedFeedbacks, CATEGORY_LABELS, type FeedbackCategory } from './feedback'
 
 export const STUDENT_NAME = 'Lê Hoàng Anh'
 
 // Mock helpers (fallback) ─────────────────────────────────────────
 
 const classIcons: Record<string, string> = {
-  'Toán học': '∑',
-  'Vật lý': 'φ',
-  'Hóa học': '⚗',
-  'Ngữ văn': '✍',
+  'Toán học': 'T',
+  'Vật lý': 'L',
+  'Hóa học': 'H',
+  'Ngữ văn': 'V',
   'Tiếng Anh': 'A',
 }
 
@@ -301,7 +301,10 @@ export async function getStudentFeedbacks(): Promise<Feedback[]> {
       student: f.student ?? STUDENT_NAME,
       teacherName: f.teacherName,
       title: f.title,
-      category: f.category,
+      category: (() => {
+        const c = String(f.category ?? '').toLowerCase() as FeedbackCategory
+        return CATEGORY_LABELS[c] ? c : 'question'
+      })(),
       message: f.content,
       date: f.createdAt ? new Date(f.createdAt).toLocaleDateString('vi-VN') : '',
       reply: f.reply

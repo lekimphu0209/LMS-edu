@@ -40,7 +40,7 @@ export default function StudentAssignments() {
 
   if (loadingClasses || loadingAssignments) {
     return (
-      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
+      <div className="page-container" style={{ paddingTop: 20, color: '#6B7280' }}>
         Đang tải...
       </div>
     );
@@ -62,14 +62,14 @@ export default function StudentAssignments() {
   };
 
   return (
-    <div className="page-container" style={{ paddingTop: 32, paddingBottom: 40 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 40 }}>
       {/* Header */}
       <div
         style={{
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
-          marginBottom: 24,
+          marginBottom: 18,
         }}
       >
         <div>
@@ -101,7 +101,7 @@ export default function StudentAssignments() {
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 14,
-          marginBottom: 24,
+          marginBottom: 18,
         }}
       >
         {[

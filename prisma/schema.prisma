@@ -237,6 +237,7 @@ model Lesson {
 
   chapter      Chapter     @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   assignments  Assignment[]
+  questions    LessonQuestion[]
 
   @@index([chapterId])
   @@map("lessons")
@@ -248,6 +249,7 @@ model Lesson {
 
 model Question {
   id               String       @id @default(uuid())
+  lessonQuestions  LessonQuestion[]
   teacherId        String
   subject          String
   type             QuestionType
@@ -428,6 +430,10 @@ model LessonQuestion {
   questionId String
   orderIndex Int      @default(0)
   createdAt  DateTime @default(now())
+
+  lesson   Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
   @@unique([lessonId, questionId])
   @@index([lessonId])
   @@index([questionId])

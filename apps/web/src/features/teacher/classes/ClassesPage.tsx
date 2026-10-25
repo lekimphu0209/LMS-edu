@@ -27,12 +27,12 @@ export default function TeacherClasses({ onNavigate }: Props) {
   const totalStudents = myClasses.reduce((a, c) => a + c.students, 0)
 
   if (isLoading) {
-    return <div className="page-container" style={{ paddingTop: 32 }}>Đang tải danh sách lớp...</div>
+    return <div className="page-container" style={{ paddingTop: 16 }}>Đang tải danh sách lớp...</div>
   }
 
   if (isError) {
     return (
-      <div className="page-container" style={{ paddingTop: 32 }}>
+      <div className="page-container" style={{ paddingTop: 16 }}>
         <div style={{ color: '#EF4444', marginBottom: 12 }}>
           Không tải được danh sách lớp: {error instanceof Error ? error.message : 'Lỗi không xác định'}
         </div>
@@ -42,9 +42,9 @@ export default function TeacherClasses({ onNavigate }: Props) {
   }
 
   return (
-    <div className="page-container" style={{ paddingTop: 32, paddingBottom: 48 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 48 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
           <h1 className="page-title" style={{ marginBottom: 4 }}>Lớp của tôi</h1>
           <p style={{ color: '#6B7280', fontSize: 14 }}>
@@ -58,11 +58,11 @@ export default function TeacherClasses({ onNavigate }: Props) {
       </div>
 
       {/* Stats bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 18 }}>
         {[
           { label: 'Lớp đang dạy', value: myClasses.length, color: '#2563EB', bg: '#EFF6FF' },
           { label: 'Tổng học sinh', value: totalStudents, color: '#7C3AED', bg: '#F5F3FF' },
-          { label: 'ĐTB toàn khoá', value: (myClasses.reduce((a, c) => a + c.avgScore, 0) / myClasses.length).toFixed(1), color: '#22C55E', bg: '#F0FDF4' },
+          { label: 'ĐTB toàn khoá', value: myClasses.length ? (myClasses.reduce((a, c) => a + c.avgScore, 0) / myClasses.length).toFixed(1) : '—', color: '#22C55E', bg: '#F0FDF4' },
         ].map(s => (
           <div key={s.label} style={{ background: s.bg, borderRadius: 12, padding: '16px 20px' }}>
             <div style={{ fontSize: 26, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif", color: s.color }}>{s.value}</div>

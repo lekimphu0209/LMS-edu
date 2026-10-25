@@ -16,6 +16,12 @@ const roleLabels: Record<string, string> = {
 
 export function ProfilePage() {
   const { user } = useAuth();
+  const initials = user?.fullName
+    ?.split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() ?? '?';
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -60,54 +66,53 @@ export function ProfilePage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="mx-auto max-w-5xl space-y-4">
         <div>
-          <h1 className="text-2xl font-bold">Hồ sơ cá nhân</h1>
-          <p className="text-muted-foreground">Xem thông tin và đổi mật khẩu</p>
+          <h1 className="text-xl font-bold">Hồ sơ cá nhân</h1>
+          <p className="text-sm text-muted-foreground">Xem thông tin và đổi mật khẩu</p>
         </div>
 
-        {/* Profile info */}
-        <Card>
-          <CardHeader><CardTitle>Thông tin tài khoản</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Họ và tên</span>
-              <span className="text-sm font-medium">{user?.fullName}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Email</span>
-              <span className="text-sm font-medium">{user?.email}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Vai trò</span>
-              <Badge variant="outline">{roleLabels[user?.role || ''] || user?.role}</Badge>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+          {/* Profile info */}
+          <Card>
+            <CardContent className="flex flex-col items-center p-6 text-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#2563EB] text-2xl font-bold text-white">
+                {initials}
+              </div>
+              <div className="mt-3 text-base font-semibold">{user?.fullName}</div>
+              <div className="mt-0.5 break-all text-sm text-muted-foreground">{user?.email}</div>
+              <Badge variant="outline" className="mt-3">{roleLabels[user?.role || ''] || user?.role}</Badge>
+            </CardContent>
+          </Card>
 
-        {/* Change password */}
-        <Card>
-          <CardHeader><CardTitle>Đổi mật khẩu</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Mật khẩu hiện tại</label>
-              <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Mật khẩu mới</label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Xác nhận mật khẩu mới</label>
-              <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            {success && <p className="text-sm text-green-600">{success}</p>}
-            <Button onClick={handleChangePassword} disabled={changePasswordMutation.isPending}>
-              {changePasswordMutation.isPending ? 'Đang đổi...' : 'Đổi mật khẩu'}
-            </Button>
-          </CardContent>
-        </Card>
+          {/* Change password */}
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base">Đổi mật khẩu</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Mật khẩu hiện tại</label>
+                <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Mật khẩu mới</label>
+                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Xác nhận mật khẩu mới</label>
+                  <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                </div>
+              </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              {success && <p className="text-sm text-green-600">{success}</p>}
+              <div className="flex justify-end">
+                <Button onClick={handleChangePassword} disabled={changePasswordMutation.isPending}>
+                  {changePasswordMutation.isPending ? 'Đang đổi...' : 'Đổi mật khẩu'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </DashboardLayout>
   );

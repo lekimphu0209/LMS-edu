@@ -174,9 +174,9 @@ export default function QuestionEditor({ initialQuestion, onBack }: {
   ]
 
   return (
-    <div className="page-container" style={{ paddingTop: 32, paddingBottom: 80 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 80 }}>
       {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
         {onBack && (
           <button className="btn-ghost" style={{ padding: '8px 12px', fontSize: 13 }} onClick={onBack}>
             ← Quay lại

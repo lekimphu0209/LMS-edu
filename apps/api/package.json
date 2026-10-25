@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma": "prisma",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node -P tsconfig.seed.json prisma/seed.ts",
+    "prisma:seed:chuong1": "ts-node -P tsconfig.seed.json prisma/seed-chuong1.ts"
   },
   "prisma": {
     "schema": "../../prisma/schema.prisma",

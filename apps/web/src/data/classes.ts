@@ -55,8 +55,8 @@ export async function getTeacherClasses(): Promise<ClassData[]> {
   if (!items?.length) return []
   return items.map((c: any) => ({
     id: String(c.id ?? c._id),
-    name: c.name,
-    subject: c.subject,
+    name: c.name ?? '',
+    subject: typeof c.subject === 'object' ? (c.subject?.name ?? '') : (c.subject ?? ''),
     grade: c.grade ?? '',
     students: c.stats?.totalStudents ?? c._count?.students ?? c.students ?? 0,
     pendingSubmissions: c.stats?.ungradedSubmissions ?? c.pendingSubmissions ?? 0,

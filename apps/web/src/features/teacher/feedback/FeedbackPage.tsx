@@ -17,13 +17,13 @@ export default function TeacherFeedbackPage() {
   })
 
   if (isLoading) {
-    return <div className="page-container" style={{ paddingTop: 32 }}>Đang tải danh sách góp ý...</div>
+    return <div className="page-container" style={{ paddingTop: 16 }}>Đang tải danh sách góp ý...</div>
   }
 
   return (
-    <div className="page-container" style={{ paddingTop: 32, paddingBottom: 40 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 40 }}>
       <h1 className="page-title" style={{ marginBottom: 8 }}>Góp ý từ học sinh</h1>
-      <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 24 }}>{feedbacks.filter(f => !f.replied).length} góp ý chưa phản hồi</p>
+      <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 18 }}>{feedbacks.filter(f => !f.replied).length} góp ý chưa phản hồi</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {feedbacks.map((fb) => (
           <div key={fb.id} className="card" style={{ padding: 24 }}>

@@ -22,11 +22,11 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
   })
 
   if (isLoading) {
-    return <div className="page-container" style={{ paddingTop: 32 }}>Đang tải dữ liệu lớp...</div>
+    return <div className="page-container" style={{ paddingTop: 16 }}>Đang tải dữ liệu lớp...</div>
   }
 
   if (!cls) {
-    return <div className="page-container" style={{ paddingTop: 32 }}>Không tìm thấy lớp</div>
+    return <div className="page-container" style={{ paddingTop: 16 }}>Không tìm thấy lớp</div>
   }
 
   const students = cls.classStudents
@@ -34,9 +34,9 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
   const avgScore = students.length ? students.reduce((a, s) => a + s.score, 0) / students.length : 0
 
   return (
-    <div className="page-container" style={{ paddingTop: 32, paddingBottom: 40 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 40 }}>
       {/* Class header */}
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: 18, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Lớp học</div>
           <h1 className="page-title">{cls.name}</h1>
@@ -53,7 +53,7 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
       </div>
 
       {/* Tabs */}
-      <div style={{ borderBottom: '1px solid #E5E7EB', marginBottom: 24 }}>
+      <div style={{ borderBottom: '1px solid #E5E7EB', marginBottom: 18 }}>
         {[
           { id: 'students', label: 'Học sinh' },
           { id: 'assignments', label: 'Bài tập đã giao' },
