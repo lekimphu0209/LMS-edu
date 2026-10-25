@@ -7,6 +7,7 @@ import {
   UpdateChapterDto,
   CreateLessonDto,
   UpdateLessonDto,
+  SetCurriculumStructureDto,
 } from './dto/curriculum.dto';
 
 @Injectable()
@@ -15,14 +16,42 @@ export class CurriculumService {
 
   // ── Curriculum ──
 
+  /**
+   * Lấy danh sách đề cương (có thể lọc theo một giáo viên), mới nhất trước.
+   * Mỗi dòng kèm `_count.chapters` và `_count.questions` gộp phẳng
+   * (tổng số dòng LessonQuestion của mọi bài) để hiển thị ở sidebar.
+   */
   async findAll(teacherId?: string) {
-    return this.prisma.curriculum.findMany({
+    const curriculums = await this.prisma.curriculum.findMany({
       where: teacherId ? { teacherId } : undefined,
       orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { chapters: true } } },
+      include: {
+        _count: { select: { chapters: true } },
+        chapters: {
+          select: {
+            lessons: {
+              select: { _count: { select: { questions: true } } },
+            },
+          },
+        },
+      },
     });
+    return curriculums.map(({ chapters, ...c }) => ({
+      ...c,
+      _count: {
+        chapters: c._count.chapters,
+        questions: chapters.reduce(
+          (sum, ch) => sum + ch.lessons.reduce((s, l) => s + l._count.questions, 0),
+          0,
+        ),
+      },
+    }));
   }
 
+  /**
+   * Trả về cây đề cương đầy đủ cho editor: mục và bài đã sắp theo `orderIndex`,
+   * mỗi bài kèm danh sách id câu hỏi theo đúng thứ tự.
+   */
   async findById(id: string) {
     const curriculum = await this.prisma.curriculum.findUnique({
       where: { id },
@@ -30,7 +59,15 @@ export class CurriculumService {
         chapters: {
           orderBy: { orderIndex: 'asc' },
           include: {
-            lessons: { orderBy: { orderIndex: 'asc' } },
+            lessons: {
+              orderBy: { orderIndex: 'asc' },
+              include: {
+                questions: {
+                  orderBy: { orderIndex: 'asc' },
+                  select: { questionId: true },
+                },
+              },
+            },
           },
         },
       },
@@ -64,6 +101,97 @@ export class CurriculumService {
     if (!curriculum) throw new NotFoundException('Curriculum not found');
     await this.prisma.curriculum.delete({ where: { id } });
     return { message: 'Curriculum deleted' };
+  }
+
+  /**
+   * Thay toàn bộ cây đề cương trong một transaction.
+   * Mục/bài có id trùng được cập nhật và giữ lại (áp thứ tự mới);
+   * id không còn trong payload bị xóa; phần không có id được tạo mới.
+   * questionIds của mỗi bài được ghi lại thành các dòng LessonQuestion theo thứ tự.
+   */
+  async setStructure(id: string, dto: SetCurriculumStructureDto) {
+    const curriculum = await this.prisma.curriculum.findUnique({
+      where: { id },
+      include: { chapters: { include: { lessons: true } } },
+    });
+    if (!curriculum) throw new NotFoundException('Curriculum not found');
+
+    // Id có trong payload thì được giữ; mọi thứ khác sẽ bị xóa ở dưới.
+    // Phần mới đến không có id nên đi vào nhánh create.
+    // Chỉ chấp nhận id thuộc đúng đề cương này — id lạ/thuộc đề cương khác
+    // bị coi như phần tử mới để tránh ghi đè dữ liệu nơi khác.
+    const ownedChapterIds = new Set(curriculum.chapters.map((c) => c.id));
+    const ownedLessonIds = new Set(
+      curriculum.chapters.flatMap((c) => c.lessons.map((l) => l.id)),
+    );
+    const keepChapterIds = (dto.chapters ?? [])
+      .map((c) => c.id)
+      .filter((x): x is string => !!x && ownedChapterIds.has(x));
+    const keepLessonIds = (dto.chapters ?? [])
+      .flatMap((c) => c.lessons ?? [])
+      .map((l) => l.id)
+      .filter((x): x is string => !!x && ownedLessonIds.has(x));
+
+    await this.prisma.$transaction(async (tx) => {
+      if (dto.title !== undefined) {
+        await tx.curriculum.update({ where: { id }, data: { title: dto.title } });
+      }
+
+      // Xóa mục/bài không còn trong payload (lesson_questions xóa theo cascade)
+      await tx.chapter.deleteMany({
+        where: { curriculumId: id, id: { notIn: keepChapterIds } },
+      });
+      await tx.lesson.deleteMany({
+        where: { chapter: { curriculumId: id }, id: { notIn: keepLessonIds } },
+      });
+
+      for (const [ci, ch] of (dto.chapters ?? []).entries()) {
+        const chapter = ch.id && ownedChapterIds.has(ch.id)
+          ? await tx.chapter.update({
+              where: { id: ch.id },
+              data: { title: ch.title, orderIndex: ci },
+            })
+          : await tx.chapter.create({
+              data: { curriculumId: id, title: ch.title, orderIndex: ci },
+            });
+
+        for (const [li, ls] of (ch.lessons ?? []).entries()) {
+          const lesson = ls.id && ownedLessonIds.has(ls.id)
+            ? await tx.lesson.update({
+                where: { id: ls.id },
+                data: {
+                  title: ls.title,
+                  orderIndex: li,
+                  contentNote: ls.contentNote,
+                  chapterId: chapter.id,
+                },
+              })
+            : await tx.lesson.create({
+                data: {
+                  chapterId: chapter.id,
+                  title: ls.title,
+                  orderIndex: li,
+                  contentNote: ls.contentNote,
+                },
+              });
+
+          const questionIds = [...new Set(ls.questionIds ?? [])];
+          await tx.lessonQuestion.deleteMany({ where: { lessonId: lesson.id } });
+          if (questionIds.length) {
+            await tx.lessonQuestion.createMany({
+              data: questionIds.map((questionId, qi) => ({
+                lessonId: lesson.id,
+                questionId,
+                orderIndex: qi,
+              })),
+              skipDuplicates: true,
+            });
+          }
+        }
+      }
+    });
+
+    return this.findById(id);
   }
 
   // ── Chapter ──

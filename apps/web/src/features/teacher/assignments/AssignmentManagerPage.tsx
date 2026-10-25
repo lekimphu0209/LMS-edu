@@ -376,9 +376,9 @@ export default function AssignmentManager({ onCreateNew, highlightClass }: Props
   }
 
   return (
-    <div className="page-container" style={{ paddingTop: 28, paddingBottom: 48 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 48 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
           <h1 className="page-title" style={{ marginBottom: 4 }}>Bài tập đã giao</h1>
           <p style={{ color: '#6B7280', fontSize: 14 }}>{assignments.length} bài tập · {assignments.filter(a => !isPast(a.dueDate)).length} đang mở</p>

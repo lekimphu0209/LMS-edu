@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CurriculumService } from './curriculum.service';
 import {
@@ -8,6 +8,7 @@ import {
   UpdateChapterDto,
   CreateLessonDto,
   UpdateLessonDto,
+  SetCurriculumStructureDto,
 } from './dto/curriculum.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -24,9 +25,14 @@ export class CurriculumController {
   // ── Curriculum ──
 
   @Get()
-  @ApiOperation({ summary: 'List curriculums' })
-  async findAll(@Query('teacherId') teacherId?: string) {
-    return this.curriculumService.findAll(teacherId);
+  @ApiOperation({ summary: 'List curriculums (teachers see their own by default)' })
+  async findAll(
+    @Query('teacherId') teacherId: string | undefined,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
+  ) {
+    const effectiveTeacherId = role === 'TEACHER' && !teacherId ? userId : teacherId;
+    return this.curriculumService.findAll(effectiveTeacherId);
   }
 
   @Get(':id')
@@ -54,6 +60,13 @@ export class CurriculumController {
   @ApiOperation({ summary: 'Delete curriculum' })
   async delete(@Param('id') id: string) {
     return this.curriculumService.delete(id);
+  }
+
+  @Put(':id/structure')
+  @Roles('TEACHER', 'ADMIN')
+  @ApiOperation({ summary: 'Replace whole curriculum tree (chapters → lessons → questions) in one transaction' })
+  async setStructure(@Param('id') id: string, @Body() dto: SetCurriculumStructureDto) {
+    return this.curriculumService.setStructure(id, dto);
   }
 
   // ── Chapter ──

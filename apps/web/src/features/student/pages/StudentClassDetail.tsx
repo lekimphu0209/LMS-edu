@@ -42,7 +42,7 @@ export default function StudentClassDetail() {
 
   if (loadingClass || loadingCurriculum || loadingAssignments) {
     return (
-      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
+      <div className="page-container" style={{ paddingTop: 20, color: '#6B7280' }}>
         Đang tải...
       </div>
     );
@@ -50,7 +50,7 @@ export default function StudentClassDetail() {
 
   if (!cls) {
     return (
-      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
+      <div className="page-container" style={{ paddingTop: 20, color: '#6B7280' }}>
         Không tìm thấy lớp học.
       </div>
     );
@@ -70,9 +70,9 @@ export default function StudentClassDetail() {
   };
 
   return (
-    <div className="page-container" style={{ paddingTop: 32, paddingBottom: 40 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 40 }}>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 18 }}>
         <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Lớp đã đăng ký</div>
         <h1 className="page-title">{cls.name}</h1>
         <div
@@ -90,7 +90,7 @@ export default function StudentClassDetail() {
       </div>
 
       {/* Tabs */}
-      <div style={{ borderBottom: '1px solid #E5E7EB', marginBottom: 24 }}>
+      <div style={{ borderBottom: '1px solid #E5E7EB', marginBottom: 18 }}>
         {[
           { id: 'curriculum', label: 'Giáo trình học tập' },
           { id: 'stats', label: 'Thống kê điểm số' },

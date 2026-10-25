@@ -20,26 +20,6 @@ export default function Quiz() {
   });
   const questions = quiz?.questions ?? [];
 
-  if (isLoading) {
-    return (
-      <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>
-        Đang tải đề...
-      </div>
-    );
-  }
-
-  const q = questions[current];
-  const totalAnswered = Object.keys(answers).length;
-  const pct = Math.round((current / questions.length) * 100);
-
-  const setAnswer = (val: string | string[]) => setAnswers((prev) => ({ ...prev, [q.id]: val }));
-
-  const toggleMultiple = (optId: string) => {
-    const cur = (answers[q.id] as string[] | undefined) || [];
-    const next = cur.includes(optId) ? cur.filter((x) => x !== optId) : [...cur, optId];
-    setAnswer(next);
-  };
-
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!quiz) throw new Error('No quiz');
@@ -57,6 +37,26 @@ export default function Quiz() {
       setSubmitted(true);
     },
   });
+
+  if (isLoading) {
+    return (
+      <div className="page-container" style={{ paddingTop: 20, color: '#6B7280' }}>
+        Đang tải đề...
+      </div>
+    );
+  }
+
+  const q = questions[current];
+  const totalAnswered = Object.keys(answers).length;
+  const pct = Math.round((current / questions.length) * 100);
+
+  const setAnswer = (val: string | string[]) => setAnswers((prev) => ({ ...prev, [q.id]: val }));
+
+  const toggleMultiple = (optId: string) => {
+    const cur = (answers[q.id] as string[] | undefined) || [];
+    const next = cur.includes(optId) ? cur.filter((x) => x !== optId) : [...cur, optId];
+    setAnswer(next);
+  };
 
   const onBack = () => {
     if (state?.classId) {
@@ -105,7 +105,7 @@ export default function Quiz() {
           >
             Bài tập đã được nộp!
           </h2>
-          <p style={{ color: '#6B7280', fontSize: 15, marginBottom: 28 }}>
+          <p style={{ color: '#6B7280', fontSize: 15, marginBottom: 18 }}>
             Bạn đã trả lời {totalAnswered}/{questions.length} câu hỏi. Giáo viên sẽ chấm điểm trong thời gian sớm nhất.
           </p>
           <button className="btn-primary" style={{ padding: '12px 32px', fontSize: 15 }} onClick={onBack}>
@@ -228,7 +228,7 @@ export default function Quiz() {
             </div>
 
             {/* Question text */}
-            <p style={{ fontSize: 18, fontWeight: 600, color: '#111827', lineHeight: 1.6, marginBottom: 28 }}>
+            <p style={{ fontSize: 18, fontWeight: 600, color: '#111827', lineHeight: 1.6, marginBottom: 18 }}>
               {q.text}
             </p>
 
@@ -521,7 +521,7 @@ export default function Quiz() {
                   borderRadius: 8,
                 }}
               >
-                ⚠️ Còn {questions.length - totalAnswered} câu chưa được trả lời!
+                Còn {questions.length - totalAnswered} câu chưa được trả lời!
               </p>
             )}
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 20 }}>

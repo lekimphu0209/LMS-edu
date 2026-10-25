@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsInt, IsEnum, Min } from 'class-validator';
-import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { IsString, IsOptional, IsInt, IsEnum, Min, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 
 export class CreateCurriculumDto {
   @ApiProperty()
@@ -58,3 +59,58 @@ export class CreateLessonDto {
 }
 
 export class UpdateLessonDto extends PartialType(CreateLessonDto) {}
+
+// ── Whole-tree save ──
+
+export class LessonInputDto {
+  @ApiPropertyOptional({ description: 'Existing lesson id; omit for new' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiProperty()
+  @IsString()
+  title!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  contentNote?: string;
+
+  @ApiPropertyOptional({ type: [String], description: 'Question ids from the question bank, in order' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  questionIds?: string[];
+}
+
+export class ChapterInputDto {
+  @ApiPropertyOptional({ description: 'Existing chapter id; omit for new' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiProperty()
+  @IsString()
+  title!: string;
+
+  @ApiPropertyOptional({ type: [LessonInputDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LessonInputDto)
+  lessons?: LessonInputDto[];
+}
+
+export class SetCurriculumStructureDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiProperty({ type: [ChapterInputDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChapterInputDto)
+  chapters!: ChapterInputDto[];
+}

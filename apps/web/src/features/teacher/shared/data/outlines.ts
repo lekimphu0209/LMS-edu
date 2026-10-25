@@ -14,6 +14,8 @@ export interface Section {
 export interface Outline {
   id: string
   title: string
+  subject?: string
+  status?: 'DRAFT' | 'PUBLISHED'
   createdAt: string
   sections: Section[]
 }

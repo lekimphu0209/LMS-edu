@@ -163,7 +163,7 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
         <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: 22, color: '#111827', marginBottom: 10 }}>Giao bài thành công!</h2>
-        <p style={{ color: '#6B7280', marginBottom: 28 }}>
+        <p style={{ color: '#6B7280', marginBottom: 18 }}>
           Bài tập <strong>{title}</strong> đã được giao cho lớp <strong>{targetClass}</strong> ({totalQuestions} câu hỏi). Hạn nộp: {dueDate} lúc {dueTime}.
         </p>
         <button className="btn-primary" onClick={resetForm}>Tạo bài tập mới</button>
@@ -172,8 +172,8 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
   }
 
   return (
-    <div className="page-container" style={{ paddingTop: 28, paddingBottom: 56 }}>
-      <h1 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: 22, color: '#111827', marginBottom: 24 }}>Giao bài tập</h1>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 56 }}>
+      <h1 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: 22, color: '#111827', marginBottom: 18 }}>Giao bài tập</h1>
 
       {/* ── Metadata ── */}
       <div className="card" style={{ padding: 24, marginBottom: 20 }}>
@@ -216,7 +216,7 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
       </div>
 
       {/* ── Builder ── */}
-      <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+      <div className="card" style={{ padding: 24, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: 14, color: '#374151' }}>Nội dung bài tập</div>
           <span style={{ fontSize: 12, fontWeight: 700, color: totalQuestions > 0 ? '#2563EB' : '#9CA3AF', background: totalQuestions > 0 ? '#EFF6FF' : '#F3F4F6', padding: '3px 12px', borderRadius: 20 }}>

@@ -41,71 +41,50 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-white">
+    <div className="flex h-screen w-full overflow-hidden bg-white">
       {/* Left illustration panel */}
-      <div className="relative hidden flex-1 flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-[#1e40af] via-[#2563EB] to-[#3b82f6] p-16 lg:flex">
+      <div className="relative hidden flex-1 flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-[#1e40af] via-[#2563EB] to-[#3b82f6] p-10 lg:flex">
         <div className="absolute -top-20 -right-20 h-72 w-72 rounded-full bg-white/5" />
         <div className="absolute -bottom-24 -left-16 h-96 w-96 rounded-full bg-white/5" />
         <div className="absolute top-[30%] -left-10 h-48 w-48 rounded-full bg-white/5" />
 
-        <div className="mb-14 flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/30 bg-white/20 backdrop-blur-md">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+        <div className="mb-8 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/30 bg-white/20 backdrop-blur-md">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3z" fill="white" />
               <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z" fill="white" opacity="0.7" />
             </svg>
           </div>
-          <span className="font-display text-3xl font-extrabold text-white">EduConnect</span>
+          <span className="font-display text-2xl font-extrabold text-white">EduConnect</span>
         </div>
 
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-sm [@media(max-height:640px)]:hidden">
           <IllustrationEdu />
         </div>
 
-        <div className="mt-12 text-center">
-          <h2 className="font-display text-2xl font-bold leading-tight text-white">
+        <div className="mt-8 text-center">
+          <h2 className="font-display text-xl font-bold leading-tight text-white">
             Nền tảng học tập
             <br />
             thông minh & kết nối
           </h2>
-          <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-white/70">
+          <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/70">
             Quản lý lớp học, bài tập và tiến độ học tập của học sinh một cách hiệu quả.
           </p>
-        </div>
-
-        <div className="mt-9 flex flex-wrap justify-center gap-3">
-          {[
-            { email: 'admin@educonnect.local', pass: 'Admin@123', label: 'Demo Admin', color: '#a78bfa' },
-            { email: 'teacher@educonnect.local', pass: 'Teacher@123', label: 'Demo Giáo viên', color: '#67e8f9' },
-            { email: 'student@educonnect.local', pass: 'Student@123', label: 'Demo Học sinh', color: '#86efac' },
-          ].map((d) => (
-            <button
-              key={d.email}
-              type="button"
-              onClick={() => {
-                setValue('email', d.email);
-                setValue('password', d.pass);
-              }}
-              className="rounded-lg border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-md transition-colors hover:bg-white/20"
-              style={{ color: d.color }}
-            >
-              {d.label}
-            </button>
-          ))}
         </div>
       </div>
 
       {/* Right form panel */}
-      <div className="flex w-full items-center justify-center p-8 lg:w-[520px] lg:p-16">
-        <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-[400px]">
-          <h1 className="font-display text-3xl font-extrabold text-[#111827]">Xin chào! 👋</h1>
-          <p className="mt-2 text-[15px] text-[#6B7280]">Đăng nhập vào tài khoản của bạn</p>
+      <div className="flex w-full justify-center overflow-y-auto p-6 lg:w-[480px] lg:p-12">
+        <form onSubmit={handleSubmit(onSubmit)} className="my-auto w-full max-w-[380px]">
+          <h1 className="font-display text-2xl font-extrabold text-[#111827]">Xin chào!</h1>
+          <p className="mt-1 text-sm text-[#6B7280]">Đăng nhập vào tài khoản của bạn</p>
 
           {error && (
-            <div className="mt-6 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+            <div className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
           )}
 
-          <div className="mt-8 space-y-5">
+          <div className="mt-6 space-y-4">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-[#374151]">Email / Tên đăng nhập</label>
               <Input
@@ -133,14 +112,37 @@ export function LoginPage() {
             </div>
             <Button
               type="submit"
-              className="h-12 w-full rounded-lg bg-[#2563EB] text-base font-semibold hover:bg-[#1d4ed8]"
+              className="h-11 w-full rounded-lg bg-[#2563EB] text-sm font-semibold hover:bg-[#1d4ed8]"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </Button>
           </div>
 
-          <p className="mt-8 text-center text-xs leading-relaxed text-[#9CA3AF]">
+          <div className="mt-6 border-t border-[#F3F4F6] pt-4">
+            <p className="mb-2 text-xs font-medium text-[#9CA3AF]">Tài khoản demo</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { email: 'admin@educonnect.local', pass: 'Admin@123', label: 'Admin' },
+                { email: 'teacher@educonnect.local', pass: 'Teacher@123', label: 'Giáo viên' },
+                { email: 'student@educonnect.local', pass: 'Student@123', label: 'Học sinh' },
+              ].map((d) => (
+                <button
+                  key={d.email}
+                  type="button"
+                  onClick={() => {
+                    setValue('email', d.email);
+                    setValue('password', d.pass);
+                  }}
+                  className="rounded-md border border-[#E5E7EB] px-2 py-1.5 text-xs font-medium text-[#374151] transition-colors hover:border-[#2563EB] hover:text-[#2563EB]"
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <p className="mt-5 text-center text-xs leading-relaxed text-[#9CA3AF]">
             Bằng cách đăng nhập, bạn đồng ý với{' '}
             <a href="#" className="text-[#2563EB]">
               Điều khoản sử dụng

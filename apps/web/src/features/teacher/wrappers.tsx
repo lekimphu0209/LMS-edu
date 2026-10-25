@@ -14,6 +14,7 @@ import TeacherClassDetail from './classes/ClassDetailPage';
 import QuestionBank from './question-bank/QuestionBank';
 import { seedOutlines, type Outline } from './shared/data/outlines';
 import CourseBuilder from './curriculum/CourseBuilderPage';
+import CurriculumDetail from './curriculum/CurriculumDetailPage';
 import Curriculum from './personalized-curriculum/PersonalizedCurriculumPage';
 import AssignmentManager from './assignments/AssignmentManagerPage';
 import CreateAssignment from './assignments/CreateAssignmentPage';
@@ -81,15 +82,11 @@ export function QuestionBankPage() {
 }
 
 export function CourseBuilderPage() {
-  const [bankQuestions] = useState<BankQuestion[]>(seedQuestions);
-  const [outlines, setOutlines] = useState<Outline[]>(seedOutlines);
-  return (
-    <CourseBuilder
-      bankQuestions={bankQuestions}
-      outlines={outlines}
-      onOutlinesChange={setOutlines}
-    />
-  );
+  return <CourseBuilder />;
+}
+
+export function CurriculumDetailPage() {
+  return <CurriculumDetail />;
 }
 
 export function CurriculumPage() {
