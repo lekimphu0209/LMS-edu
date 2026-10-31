@@ -36,6 +36,7 @@ function labelFor(path: string, search: string): string | null {
   if (staticLabels[path]) return staticLabels[path];
   if (/^\/(student\/)?classes\/[^/]+$/.test(path)) return 'Chi tiết lớp';
   if (/^\/curriculum\/[^/]+$/.test(path)) return 'Chi tiết đề cương';
+  if (/^\/assignments\/[^/]+$/.test(path)) return 'Chi tiết bài tập';
   return null;
 }
 

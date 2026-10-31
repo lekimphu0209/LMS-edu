@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "prisma": "prisma",
     "prisma:seed": "ts-node -P tsconfig.seed.json prisma/seed.ts",
-    "prisma:seed:chuong1": "ts-node -P tsconfig.seed.json prisma/seed-chuong1.ts"
+    "prisma:seed:chuong1": "ts-node -P tsconfig.seed.json prisma/seed-chuong1.ts",
+    "prisma:seed:qbank": "ts-node -P tsconfig.seed.json prisma/seed-qbank-test.ts"
   },
   "prisma": {
     "schema": "../../prisma/schema.prisma",

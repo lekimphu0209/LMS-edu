@@ -18,6 +18,7 @@ import CurriculumDetail from './curriculum/CurriculumDetailPage';
 import Curriculum from './personalized-curriculum/PersonalizedCurriculumPage';
 import AssignmentManager from './assignments/AssignmentManagerPage';
 import CreateAssignment from './assignments/CreateAssignmentPage';
+import AssignmentDetail from './assignments/AssignmentDetailPage';
 import TeacherFeedback from './feedback/FeedbackPage';
 
 const pageToRoute: Record<string, string> = {
@@ -102,6 +103,10 @@ export function CreateAssignmentPage() {
   const [bankQuestions] = useState<BankQuestion[]>(seedQuestions);
   const [outlines] = useState<Outline[]>(seedOutlines);
   return <CreateAssignment bankQuestions={bankQuestions} outlines={outlines} />;
+}
+
+export function AssignmentDetailPage() {
+  return <AssignmentDetail />;
 }
 
 export function FeedbackPage() {

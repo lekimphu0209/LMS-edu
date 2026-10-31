@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getTeacherClassDetail, type ClassDetail } from '@/data/classes'
 
@@ -13,6 +13,7 @@ const avatarColors = ['#2563EB', '#7C3AED', '#22C55E', '#F59E0B', '#EF4444', '#0
 
 export default function TeacherClassDetail({ classData, onNavigate }: { classData?: any; onNavigate?: (page: string, data?: any) => void }) {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [tab, setTab] = useState('students')
   const classId = id ?? classData?.id ?? ''
   const { data: cls, isLoading } = useQuery<ClassDetail>({
@@ -34,7 +35,7 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
   const avgScore = students.length ? students.reduce((a, s) => a + s.score, 0) / students.length : 0
 
   return (
-    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 40 }}>
+    <div className="page-container" style={{ paddingTop: 16, paddingBottom: 56, maxWidth: 1180 }}>
       {/* Class header */}
       <div style={{ marginBottom: 18, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
@@ -48,7 +49,7 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn-secondary">Tải báo cáo</button>
-          <button className="btn-primary">+ Giao bài tập</button>
+          <button className="btn-primary" onClick={() => navigate('/assignments/new', { state: { prefill: { class: cls.name } } })}>+ Giao bài tập</button>
         </div>
       </div>
 
@@ -124,16 +125,12 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
                       <span style={{ fontSize: 12, color: '#6B7280' }}>Hạn nộp: {a.due}</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn-secondary" style={{ padding: '6px 14px', fontSize: 13 }}
-                      onClick={() => onNavigate?.('teacher-assign', { highlightClass: cls.name })}>
-                      Chỉnh sửa
-                    </button>
-                    <button className="btn-primary" style={{ padding: '6px 14px', fontSize: 13 }}
-                      onClick={() => onNavigate?.('teacher-assign', { highlightClass: cls.name })}>
-                      Xem chi tiết
-                    </button>
-                  </div>
+                  <button className="btn-primary" style={{ padding: '6px 14px', fontSize: 13 }}
+                    onClick={() => navigate(`/assignments/${a.assignmentId}`, {
+                      state: { fallback: { title: a.title, className: cls.name, due: a.due, submitted: a.submitted, total: a.total } },
+                    })}>
+                    Xem chi tiết
+                  </button>
                 </div>
 
                 {/* Completion row */}
@@ -160,11 +157,6 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
               </div>
             )
           })}
-          <button className="btn-primary" style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
-            onClick={() => onNavigate?.('teacher-assign-create')}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Giao bài tập mới
-          </button>
         </div>
       )}
 

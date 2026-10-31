@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { getQuiz, submitQuiz, type QuizData, type QuizAnswer } from '@/data/student';
+import { getQuiz, submitQuiz, type QuizData } from '@/data/student';
+import { buildQuizAnswers, toggleOption, isAnswered, answeredCount, type QuizAnswers } from './quizLogic';
 
 export default function Quiz() {
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  const [answers, setAnswers] = useState<QuizAnswers>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -23,14 +24,7 @@ export default function Quiz() {
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!quiz) throw new Error('No quiz');
-      const payload: QuizAnswer[] = quiz.questions.map((q: import('@/data/student').QuizQuestion) => {
-        const ans = answers[q.id];
-        if (q.type === 'fill') {
-          return { questionId: q.id, textAnswer: (ans as string) || '' };
-        }
-        return { questionId: q.id, selectedOptionIds: Array.isArray(ans) ? ans : ans ? [ans] : [] };
-      });
-      return submitQuiz(quiz.targetId, payload);
+      return submitQuiz(quiz.targetId, buildQuizAnswers(quiz.questions, answers));
     },
     onSuccess: () => {
       setShowConfirm(false);
@@ -47,15 +41,13 @@ export default function Quiz() {
   }
 
   const q = questions[current];
-  const totalAnswered = Object.keys(answers).length;
+  const totalAnswered = answeredCount(questions, answers);
   const pct = Math.round((current / questions.length) * 100);
 
   const setAnswer = (val: string | string[]) => setAnswers((prev) => ({ ...prev, [q.id]: val }));
 
   const toggleMultiple = (optId: string) => {
-    const cur = (answers[q.id] as string[] | undefined) || [];
-    const next = cur.includes(optId) ? cur.filter((x) => x !== optId) : [...cur, optId];
-    setAnswer(next);
+    setAnswer(toggleOption(answers[q.id] as string[] | undefined, optId));
   };
 
   const onBack = () => {
@@ -395,7 +387,7 @@ export default function Quiz() {
             </h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 16 }}>
               {questions.map((q, i) => {
-                const answered = answers[q.id] !== undefined && answers[q.id] !== '';
+                const answered = isAnswered(answers[q.id]);
                 const isCurrent = current === i;
                 return (
                   <button

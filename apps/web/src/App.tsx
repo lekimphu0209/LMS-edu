@@ -19,6 +19,7 @@ import {
   CurriculumPage,
   AssignmentManagerPage,
   CreateAssignmentPage,
+  AssignmentDetailPage,
   FeedbackPage,
 } from '@/features/teacher/wrappers';
 import { StudentLayout } from '@/features/student/shared/layouts/StudentLayout';
@@ -95,6 +96,7 @@ export function App() {
               <Route path="/questions" element={<QuestionBankPage />} />
               <Route path="/assignments" element={<AssignmentManagerPage />} />
               <Route path="/assignments/new" element={<CreateAssignmentPage />} />
+              <Route path="/assignments/:id" element={<AssignmentDetailPage />} />
               <Route path="/progress" element={<CurriculumPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
             </Route>
