@@ -29,11 +29,16 @@ export const seedOutlines: Outline[] = [
         exercises: [
           { id: 'e1', title: 'Bài tập nhận biết hàm số', questionIds: ['q1', 'q3'] },
           { id: 'e2', title: 'Kiểm tra nhanh định nghĩa', questionIds: [] },
+          { id: 'e10', title: 'Bài tập xét tính chẵn lẻ của hàm số', questionIds: ['q3'] },
         ],
       },
       {
         id: 's2', title: 'Mục 2: Phương trình bậc hai', expanded: false,
-        exercises: [{ id: 'e3', title: 'Luyện giải phương trình', questionIds: ['q1'] }],
+        exercises: [
+          { id: 'e3', title: 'Luyện giải phương trình', questionIds: ['q1'] },
+          { id: 'e11', title: 'Bài tập vẽ đồ thị hàm bậc hai', questionIds: ['q5'] },
+          { id: 'e12', title: 'Kiểm tra 15 phút chương 1', questionIds: ['q1', 'q3'] },
+        ],
       },
     ],
   },
@@ -42,11 +47,17 @@ export const seedOutlines: Outline[] = [
     sections: [
       {
         id: 's3', title: 'Mục 1: Đạo hàm', expanded: true,
-        exercises: [{ id: 'e4', title: 'Bài tập tính đạo hàm', questionIds: ['q4', 'q5'] }],
+        exercises: [
+          { id: 'e4', title: 'Bài tập tính đạo hàm', questionIds: ['q4', 'q5'] },
+          { id: 'e13', title: 'Bài tập đạo hàm tổng hợp', questionIds: ['q4'] },
+        ],
       },
       {
         id: 's3b', title: 'Mục 2: Quan hệ song song', expanded: false,
-        exercises: [{ id: 'e4b', title: 'Bài tập hình học không gian', questionIds: ['q9', 'q10'] }],
+        exercises: [
+          { id: 'e4b', title: 'Bài tập hình học không gian', questionIds: ['q9', 'q10'] },
+          { id: 'e14', title: 'Kiểm tra hình chóp — quan hệ song song', questionIds: ['q9'] },
+        ],
       },
     ],
   },
@@ -58,11 +69,15 @@ export const seedOutlines: Outline[] = [
         exercises: [
           { id: 'e5', title: 'Bài tập dao động điều hòa', questionIds: ['q6'] },
           { id: 'e6', title: 'Kiểm tra nhanh con lắc', questionIds: [] },
+          { id: 'e15', title: 'Bài tập con lắc đơn', questionIds: ['q6'] },
         ],
       },
       {
         id: 's5', title: 'Mục 2: Sóng cơ', expanded: false,
-        exercises: [{ id: 'e7', title: 'Bài tập sóng âm', questionIds: ['q8'] }],
+        exercises: [
+          { id: 'e7', title: 'Bài tập sóng âm', questionIds: ['q8'] },
+          { id: 'e16', title: 'Kiểm tra nhanh sóng cơ', questionIds: ['q8'] },
+        ],
       },
     ],
   },
@@ -71,11 +86,17 @@ export const seedOutlines: Outline[] = [
     sections: [
       {
         id: 's6', title: 'Mục 1: Nguyên tử', expanded: true,
-        exercises: [{ id: 'e8', title: 'Bài tập cấu tạo nguyên tử', questionIds: ['q1', 'q2'] }],
+        exercises: [
+          { id: 'e8', title: 'Bài tập cấu tạo nguyên tử', questionIds: ['q1', 'q2'] },
+          { id: 'e17', title: 'Bài tập cấu hình electron', questionIds: ['q2'] },
+        ],
       },
       {
         id: 's7', title: 'Mục 2: Bảng tuần hoàn', expanded: false,
-        exercises: [{ id: 'e9', title: 'Luyện tập bảng tuần hoàn', questionIds: [] }],
+        exercises: [
+          { id: 'e9', title: 'Luyện tập bảng tuần hoàn', questionIds: [] },
+          { id: 'e18', title: 'Kiểm tra xu hướng biến đổi tuần hoàn', questionIds: ['q1'] },
+        ],
       },
     ],
   },

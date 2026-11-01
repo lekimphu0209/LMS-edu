@@ -13,23 +13,36 @@ export class SubmissionsService {
     if (!target) throw new NotFoundException('Assignment target not found');
 
     const existing = await this.prisma.submission.findFirst({
-      where: { assignmentTargetId: dto.assignmentTargetId, studentId, status: 'IN_PROGRESS' },
+      where: { assignmentTargetId: dto.assignmentTargetId, studentId },
+      orderBy: { createdAt: 'desc' },
     });
-    if (existing) return existing;
+    if (existing) {
+      if (existing.status === 'IN_PROGRESS') return existing;
+      throw new BadRequestException('Already submitted this assignment');
+    }
 
-    return this.prisma.submission.create({
+    const submission = await this.prisma.submission.create({
       data: {
         assignmentTargetId: dto.assignmentTargetId,
         studentId,
         status: 'IN_PROGRESS',
       },
     });
+
+    // Ghi nhận thời điểm bắt đầu làm bài
+    await this.prisma.learningSession.create({
+      data: { studentId, assignmentTargetId: dto.assignmentTargetId, submissionId: submission.id },
+    });
+
+    return submission;
   }
 
   async submit(submissionId: string, dto: SubmitSubmissionDto, studentId: string) {
     const submission = await this.prisma.submission.findUnique({ where: { id: submissionId } });
     if (!submission) throw new NotFoundException('Submission not found');
     if (submission.studentId !== studentId) throw new BadRequestException('Not your submission');
+    if (submission.status !== 'IN_PROGRESS')
+      throw new BadRequestException('Submission already submitted');
 
     await this.prisma.submissionAnswer.deleteMany({ where: { submissionId } });
 
@@ -51,6 +64,12 @@ export class SubmissionsService {
         }),
       ),
     );
+
+    // Ghi nhận thời điểm kết thúc phiên làm bài
+    await this.prisma.learningSession.updateMany({
+      where: { submissionId, endedAt: null },
+      data: { endedAt: new Date() },
+    });
 
     return this.prisma.submission.update({
       where: { id: submissionId },

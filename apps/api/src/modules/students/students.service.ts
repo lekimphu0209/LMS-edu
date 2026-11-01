@@ -68,6 +68,7 @@ export class StudentsService {
       done,
       score: sub?.totalScore ?? null,
       submittedAt: sub?.submittedAt?.toISOString() ?? null,
+      submissionId: sub?.id ?? null,
       maxScore: t.assignment.maxScore,
     };
   }
@@ -156,6 +157,7 @@ export class StudentsService {
                                   where: { studentId },
                                   orderBy: { createdAt: 'desc' },
                                   take: 1,
+                                  include: { learningSession: true },
                                 },
                               },
                             },
@@ -183,11 +185,23 @@ export class StudentsService {
           const subs = ls.assignments.flatMap((a) => a.targets.flatMap((t) => t.submissions));
           const done = subs.some((s) => ['SUBMITTED', 'LATE', 'GRADED'].includes(s.status));
           const scores = subs.map((s) => s.totalScore).filter((s): s is number => s !== null);
+          const lastSubmitted = subs
+            .map((s) => s.submittedAt ?? s.createdAt)
+            .filter((d): d is Date => !!d)
+            .sort((a, b) => b.getTime() - a.getTime())[0];
+          const timeMin = Math.round(
+            subs.reduce((sum, s) => {
+              const ls = s.learningSession;
+              return ls?.endedAt ? sum + (ls.endedAt.getTime() - ls.startedAt.getTime()) / 60000 : sum;
+            }, 0),
+          );
           return {
             id: ls.id,
             title: ls.title,
             done,
             score: scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : null,
+            timeMin,
+            completedAt: done ? (lastSubmitted ?? null) : null,
           };
         }),
       })),

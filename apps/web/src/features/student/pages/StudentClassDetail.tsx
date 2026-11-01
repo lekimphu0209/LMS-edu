@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import ClassStatsTab from '../components/ClassStatsTab';
+import StartQuizConfirm from '../components/StartQuizConfirm';
 import {
   getEnrolledClass,
   getCurriculum,
   getStudentAssignments,
-  type CurriculumSection,
+  fmtDateTime,
   type StudentAssignment,
   type EnrolledClass,
   type CurriculumChapter,
@@ -35,6 +37,9 @@ export default function StudentClassDetail() {
 
   const pendingAssignments = classAssignments.filter((a) => !a.done);
   const completedAssignments = classAssignments.filter((a) => a.done);
+  const pendingUpcoming = pendingAssignments.filter((a) => !a.overdue);
+  const pendingOverdue = pendingAssignments.filter((a) => a.overdue);
+  const [hwFilter, setHwFilter] = useState<'upcoming' | 'overdue' | 'done'>('upcoming');
   const [tab, setTab] = useState('curriculum');
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(curriculum.slice(0, 2).map((c) => c.id)),
@@ -65,8 +70,143 @@ export default function StudentClassDetail() {
     });
   };
 
-  const onStartQuiz = (a: StudentAssignment) => {
-    navigate('/student/quiz', { state: { classId: cls.id, assignmentId: a.id } });
+  const [confirmA, setConfirmA] = useState<StudentAssignment | null>(null);
+
+  // Bấm Bắt đầu → mở popup xác nhận tại chỗ (giống trang chi tiết), không chuyển trang ngay
+  const onStartQuiz = (a: StudentAssignment) => setConfirmA(a);
+
+  const confirmStart = (a: StudentAssignment) => {
+    setConfirmA(null);
+    navigate(`/student/assignments/${a.id}/quiz`, { state: { startNow: true } });
+  };
+
+  // Card ngang — đồng bộ style với trang "Bài tập của tôi"
+  const renderHwCard = (a: StudentAssignment) => {
+    const accent = a.done
+      ? '#22C55E'
+      : a.overdue
+        ? '#EF4444'
+        : a.daysLeft <= 2
+          ? '#F59E0B'
+          : '#2563EB';
+    return (
+      <div
+        key={a.id}
+        className="card"
+        onClick={() =>
+          navigate(`/student/assignments/${a.id}`, {
+            state: { from: 'class', classId: cls.id },
+          })
+        }
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 6px 20px rgba(37,99,235,0.10)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = '';
+        }}
+        style={{
+          padding: '18px 22px',
+          borderLeft: `4px solid ${accent}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 20,
+          flexWrap: 'wrap',
+          opacity: a.overdue ? 0.92 : 1,
+          cursor: 'pointer',
+          transition: 'box-shadow 0.15s, border-color 0.15s',
+        }}
+      >
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>{a.title}</span>
+            {a.overdue && !a.done && <span className="badge-danger">Đã quá hạn</span>}
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="badge-gray">{a.type}</span>
+            <span style={{ fontSize: 12, color: '#9CA3AF' }}>{a.questions} câu hỏi</span>
+            {a.done && (
+              <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                Nộp lúc: {a.submittedDate ? fmtDateTime(a.submittedDate) : '—'}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Hạn nộp / trạng thái */}
+        <div style={{ width: 170, flexShrink: 0 }}>
+          <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 2 }}>Hạn nộp</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
+            {a.due} {a.dueTime && `· ${a.dueTime}`}
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, color: accent }}>
+            {a.done
+              ? '✓ Hoàn thành'
+              : a.overdue
+                ? `⏰ Đã quá hạn ${Math.abs(a.daysLeft)} ngày`
+                : `⏰ Còn ${a.daysLeft} ngày`}
+          </div>
+        </div>
+
+        {/* Action / điểm */}
+        {a.done ? (
+          <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 64 }}>
+            <div
+              style={{
+                fontSize: 26,
+                fontWeight: 800,
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                color: (a.score ?? 0) >= 8 ? '#22C55E' : (a.score ?? 0) >= 6.5 ? '#F59E0B' : '#EF4444',
+                lineHeight: 1,
+              }}
+            >
+              {a.score ?? '—'}
+            </div>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>/{a.maxScore} điểm</div>
+          </div>
+        ) : a.overdue ? (
+          <button
+            disabled
+            style={{
+              padding: '8px 16px',
+              fontSize: 13,
+              fontWeight: 600,
+              borderRadius: 8,
+              border: '1px solid #E5E7EB',
+              background: '#F3F4F6',
+              color: '#9CA3AF',
+              cursor: 'not-allowed',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Đã quá hạn
+          </button>
+        ) : (
+          <button
+            className="btn-primary"
+            style={{ padding: '8px 16px', fontSize: 13, flexShrink: 0, whiteSpace: 'nowrap' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartQuiz(a);
+            }}
+          >
+            Bắt đầu làm bài
+          </button>
+        )}
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#D1D5DB"
+          strokeWidth="2"
+          style={{ flexShrink: 0 }}
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </div>
+    );
   };
 
   return (
@@ -269,387 +409,126 @@ export default function StudentClassDetail() {
       )}
 
       {/* Stats tab */}
-      {tab === 'stats' && (
-        <StatsTab sections={curriculum.flatMap((c) => c.sections).filter((s) => s.done)} />
-      )}
+      {tab === 'stats' && <ClassStatsTab sections={curriculum.flatMap((c) => c.sections)} />}
 
       {/* Homework tab */}
       {tab === 'homework' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-          {/* Pending */}
-          <div>
-            <h3
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: '#111827',
-                marginBottom: 14,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
-              Chưa hoàn thành ({pendingAssignments.length})
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {pendingAssignments.map((a) => (
-                <div
-                  key={a.id}
-                  className="card"
-                  style={{
-                    padding: 20,
-                    borderLeft: `4px solid ${a.daysLeft <= 2 ? '#EF4444' : '#F59E0B'}`,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "'Plus Jakarta Sans', sans-serif",
-                      fontWeight: 700,
-                      fontSize: 15,
-                      color: '#111827',
-                      marginBottom: 6,
-                    }}
-                  >
-                    {a.title}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-                    <span className="badge-info" style={{ fontSize: 11 }}>
-                      {a.type}
-                    </span>
-                    <span style={{ fontSize: 12, color: '#6B7280' }}>{a.questions} câu hỏi</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontSize: 12, color: '#9CA3AF' }}>Hạn nộp: {a.due}</div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 700,
-                          marginTop: 2,
-                          color: a.daysLeft <= 2 ? '#EF4444' : '#F59E0B',
-                        }}
-                      >
-                        ⏰ {a.overdue ? `Quá hạn ${Math.abs(a.daysLeft)} ngày` : `Còn ${a.daysLeft} ngày`}
-                      </div>
-                    </div>
-                    <button
-                      className="btn-primary"
-                      style={{ padding: '8px 16px', fontSize: 13 }}
-                      onClick={() => onStartQuiz(a)}
-                    >
-                      Bắt đầu làm bài
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Completed */}
-          <div>
-            <h3
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: '#111827',
-                marginBottom: 14,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E' }} />
-              Đã hoàn thành ({completedAssignments.length})
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {completedAssignments.map((a) => (
-                <div key={a.id} className="card" style={{ padding: 20, borderLeft: '4px solid #22C55E' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: '#111827', marginBottom: 4 }}>
-                        {a.title}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#9CA3AF' }}>Nộp lúc: {a.submittedDate}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div
-                        style={{
-                          fontSize: 24,
-                          fontWeight: 800,
-                          fontFamily: "'Plus Jakarta Sans', sans-serif",
-                          color: (a.score ?? 0) >= 8 ? '#22C55E' : (a.score ?? 0) >= 6.5 ? '#F59E0B' : '#EF4444',
-                        }}
-                      >
-                        {a.score ?? '—'}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#9CA3AF' }}>/{a.maxScore}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatsTab({ sections }: { sections: CurriculumSection[] }) {
-  const scored = sections.filter((s) => s.score !== null);
-  const totalTimeMin = sections.reduce((a, s) => a + s.timeMin, 0);
-  const avgScore = scored.length
-    ? scored.reduce((a, s) => a + (s.score ?? 0), 0) / scored.length
-    : 0;
-  const scoreData = [
-    { label: 'Điểm TB', value: avgScore.toFixed(1), color: '#2563EB', sub: `${scored.length} bài được chấm` },
-    { label: 'Điểm cao nhất', value: scored.length ? Math.max(...scored.map((s) => s.score ?? 0)).toFixed(1) : '—', color: '#22C55E', sub: 'Điểm tốt nhất' },
-    { label: 'Điểm thấp nhất', value: scored.length ? Math.min(...scored.map((s) => s.score ?? 0)).toFixed(1) : '—', color: '#F59E0B', sub: 'Cần cải thiện' },
-    { label: 'Tổng thời gian', value: `${Math.floor(totalTimeMin / 60)}h${totalTimeMin % 60}p`, color: '#7C3AED', sub: 'Đã học' },
-  ];
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Score stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-        {scoreData.map((stat) => (
+        <div>
+          {/* Tab bar trạng thái — giống trang "Bài tập của tôi" */}
           <div
-            key={stat.label}
-            className="card"
-            style={{ padding: '18px 20px', borderTop: `3px solid ${stat.color}` }}
-          >
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 800,
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                color: stat.color,
-              }}
-            >
-              {stat.value}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginTop: 4 }}>
-              {stat.label}
-            </div>
-            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{stat.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        {/* Score column chart */}
-        <div className="card" style={{ padding: 24 }}>
-          <h3 className="section-title" style={{ marginBottom: 20 }}>
-            Điểm từng mục đã hoàn thành
-          </h3>
-          <ScoreChart items={scored} />
-        </div>
-
-        {/* Time column chart */}
-        <div className="card" style={{ padding: 24 }}>
-          <h3 className="section-title" style={{ marginBottom: 20 }}>
-            Thời gian làm bài (phút)
-          </h3>
-          <TimeChart items={sections.filter((s) => s.timeMin > 0)} totalTimeMin={totalTimeMin} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ScoreChart({ items }: { items: CurriculumSection[] }) {
-  const maxH = 150;
-  return (
-    <>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 8,
-          height: maxH + 28,
-          paddingBottom: 28,
-          position: 'relative',
-        }}
-      >
-        {/* Y gridlines */}
-        {[0, 5, 10].map((v) => (
-          <div
-            key={v}
             style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: `${(v / 10) * maxH + 28}px`,
-              borderTop: '1px dashed #F3F4F6',
-              pointerEvents: 'none',
+              display: 'flex',
+              borderBottom: '1px solid #E5E7EB',
+              marginBottom: 18,
             }}
           >
-            <span style={{ position: 'absolute', left: -2, top: -8, fontSize: 10, color: '#D1D5DB' }}>
-              {v}
-            </span>
+            {(
+              [
+                { key: 'upcoming', label: 'Chưa làm', count: pendingUpcoming.length, dot: '#2563EB' },
+                { key: 'overdue', label: 'Đã quá hạn', count: pendingOverdue.length, dot: '#EF4444' },
+                { key: 'done', label: 'Hoàn thành', count: completedAssignments.length, dot: '#22C55E' },
+              ] as { key: typeof hwFilter; label: string; count: number; dot: string }[]
+            ).map((t) => {
+              const active = hwFilter === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setHwFilter(t.key)}
+                  style={{
+                    padding: '11px 18px',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    fontFamily: 'inherit',
+                    color: active ? '#2563EB' : '#6B7280',
+                    borderBottom: `2px solid ${active ? '#2563EB' : 'transparent'}`,
+                    marginBottom: -1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span
+                    style={{ width: 8, height: 8, borderRadius: '50%', background: t.dot, display: 'inline-block' }}
+                  />
+                  {t.label}
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: '1px 8px',
+                      borderRadius: 20,
+                      background: active ? '#EFF6FF' : '#F3F4F6',
+                      color: active ? '#2563EB' : '#6B7280',
+                    }}
+                  >
+                    {t.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        ))}
-        {items.map((sec) => {
-          const sc = sec.score ?? 0;
-          const color = sc >= 8 ? '#22C55E' : sc >= 6.5 ? '#F59E0B' : '#EF4444';
-          const h = (sc / 10) * maxH;
-          return (
-            <div
-              key={sec.id}
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color,
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                }}
-              >
-                {sc.toFixed(1)}
-              </span>
-              <div
-                style={{
-                  width: '100%',
-                  height: h,
-                  background: color,
-                  borderRadius: '6px 6px 0 0',
-                  opacity: 0.88,
-                  transition: 'height 0.4s',
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 10,
-                  color: '#9CA3AF',
-                  textAlign: 'center',
-                  lineHeight: 1.3,
-                  maxWidth: 52,
-                  overflow: 'hidden',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                }}
-              >
-                {sec.title.split(' ').slice(-2).join(' ')}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ display: 'flex', gap: 14, marginTop: 4, flexWrap: 'wrap' }}>
-        {[
-          { c: '#22C55E', l: 'Giỏi (≥8)' },
-          { c: '#F59E0B', l: 'Khá (6.5–8)' },
-          { c: '#EF4444', l: 'Yếu (<6.5)' },
-        ].map((x) => (
-          <div
-            key={x.l}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}
-          >
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: x.c }} /> {x.l}
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
 
-function TimeChart({ items, totalTimeMin }: { items: CurriculumSection[]; totalTimeMin: number }) {
-  const maxVal = Math.max(...items.map((s) => s.timeMin), 1);
-  const maxH = 150;
-  return (
-    <>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 8,
-          height: maxH + 28,
-          paddingBottom: 28,
-          position: 'relative',
-        }}
-      >
-        {items.map((sec) => {
-          const h = (sec.timeMin / maxVal) * maxH;
-          return (
-            <div
-              key={sec.id}
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: '#7C3AED',
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                }}
-              >
-                {sec.timeMin}p
-              </span>
-              <div
-                style={{
-                  width: '100%',
-                  height: h,
-                  background: '#7C3AED',
-                  borderRadius: '6px 6px 0 0',
-                  opacity: 0.82,
-                  transition: 'height 0.4s',
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 10,
-                  color: '#9CA3AF',
-                  textAlign: 'center',
-                  lineHeight: 1.3,
-                  maxWidth: 52,
-                  overflow: 'hidden',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                }}
-              >
-                {sec.title.split(' ').slice(-2).join(' ')}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <div
-        style={{
-          padding: '12px 16px',
-          background: '#F5F3FF',
-          borderRadius: 10,
-          marginTop: 4,
-        }}
-      >
-        <div style={{ fontSize: 12, color: '#6B7280' }}>Tổng thời gian đã học</div>
-        <div
-          style={{
-            fontSize: 20,
-            fontWeight: 800,
-            fontFamily: "'Plus Jakarta Sans', sans-serif",
-            color: '#7C3AED',
-            marginTop: 2,
-          }}
-        >
-          {Math.floor(totalTimeMin / 60)} giờ {totalTimeMin % 60} phút
+          {/* Danh sách theo filter — row card giống trang Bài tập */}
+          {(() => {
+            const list =
+              hwFilter === 'upcoming'
+                ? pendingUpcoming
+                : hwFilter === 'overdue'
+                  ? pendingOverdue
+                  : completedAssignments;
+            if (list.length === 0)
+              return (
+                <div className="card" style={{ padding: '52px 24px', textAlign: 'center' }}>
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: '50%',
+                      background: '#F0FDF4',
+                      margin: '0 auto 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.4">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: '#374151', marginBottom: 4 }}>
+                    {hwFilter === 'upcoming'
+                      ? 'Không có bài tập nào chưa làm'
+                      : hwFilter === 'overdue'
+                        ? 'Không có bài tập nào đã quá hạn'
+                        : 'Chưa có bài tập nào đã hoàn thành'}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#9CA3AF' }}>
+                    {hwFilter === 'done' ? 'Các bài đã nộp sẽ xuất hiện ở đây' : 'Bạn đang theo kịp tiến độ học tập'}
+                  </div>
+                </div>
+              );
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {list.map(renderHwCard)}
+              </div>
+            );
+          })()}
         </div>
-      </div>
-    </>
+      )}
+
+      {/* Popup xác nhận bắt đầu — hủy thì ở lại trang */}
+      {confirmA && (
+        <StartQuizConfirm
+          title={confirmA.title}
+          questions={confirmA.questions}
+          onCancel={() => setConfirmA(null)}
+          onConfirm={() => confirmStart(confirmA)}
+        />
+      )}
+    </div>
   );
 }

@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import { seedQuestions, type BankQuestion } from './questionBank'
 import { seedOutlines } from '@/features/teacher/shared/data/outlines'
 import { teacherClasses } from './classes'
-import { seedAssignments, fmtDate, type Assignment } from './assignments'
+import { seedAssignments, fmtDate, type Assignment, type QuestionAnswer } from './assignments'
 import { seedFeedbacks, CATEGORY_LABELS, type FeedbackCategory } from './feedback'
 
 export const STUDENT_NAME = 'Lê Hoàng Anh'
@@ -131,6 +131,7 @@ export interface StudentAssignment {
   id: string
   targetId: string
   title: string
+  classId: string | null
   className: string
   type: string
   due: string
@@ -143,6 +144,7 @@ export interface StudentAssignment {
   done: boolean
   score: number | null
   submittedDate: string | null
+  submissionId: string | null
   maxScore: number
 }
 
@@ -151,6 +153,7 @@ function apiToStudentAssignment(a: any): StudentAssignment {
     id: a.id,
     targetId: a.targetId,
     title: a.title,
+    classId: a.classId ?? null,
     className: a.className,
     type: a.type,
     due: a.dueDate ? fmtDate(a.dueDate.slice(0, 10)) : '',
@@ -163,6 +166,7 @@ function apiToStudentAssignment(a: any): StudentAssignment {
     done: a.done ?? false,
     score: a.score ?? null,
     submittedDate: a.submittedAt ?? null,
+    submissionId: a.submissionId ?? null,
     maxScore: a.maxScore ?? 10,
   }
 }
@@ -189,6 +193,7 @@ function mockGetStudentAssignments(className?: string): StudentAssignment[] {
         id: String(a.id),
         targetId: String(a.id),
         title: a.title,
+        classId: String(teacherClasses.find((c) => c.name === a.class)?.id ?? '') || null,
         className: a.class,
         type: 'Trắc nghiệm',
         due: fmtDate(a.dueDate),
@@ -201,6 +206,7 @@ function mockGetStudentAssignments(className?: string): StudentAssignment[] {
         done,
         score: sub?.score ?? null,
         submittedDate: sub?.completedAt ?? null,
+        submissionId: done ? String(a.id) : null,
         maxScore: 10,
       }
     })
@@ -212,6 +218,117 @@ export function isAssignmentDone(a: StudentAssignment | Assignment): boolean {
   return !!mockStudentSubmission(a)?.completedAt
 }
 
+/** ISO / 'YYYY-MM-DD HH:mm' → 'DD/MM/YYYY HH:mm' (giữ nguyên nếu không parse được) */
+export function fmtDateTime(s: string) {
+  const d = new Date(s.replace(' ', 'T'))
+  if (isNaN(d.getTime())) return s
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+// ── Assignment review (bài làm của học sinh: câu hỏi + đáp án đã chọn) ──
+
+export interface AssignmentReview {
+  title: string
+  status: string
+  score: number | null
+  maxScore: number
+  submittedAt: string | null
+  answers: QuestionAnswer[]
+}
+
+export async function getAssignmentReview(submissionId: string): Promise<AssignmentReview | null> {
+  try {
+    const { data } = await api.get(`/submissions/${submissionId}`)
+    const asg = data.assignmentTarget?.assignment
+    const answers: QuestionAnswer[] = (data.answers ?? []).map((ans: any, i: number) =>
+      apiToReviewAnswer(ans, i),
+    )
+    return {
+      title: asg?.title ?? '',
+      status: data.status ?? '',
+      score: data.totalScore ?? null,
+      maxScore: asg?.maxScore ?? 10,
+      submittedAt: data.submittedAt ?? null,
+      answers,
+    }
+  } catch {
+    return mockGetAssignmentReview(submissionId)
+  }
+}
+
+function apiToReviewAnswer(ans: any, index: number): QuestionAnswer {
+  const q = ans.question ?? {}
+  const options: any[] = (q.options ?? [])
+    .slice()
+    .sort((a: any, b: any) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+  const optTexts = options.map((o) => o.optionText ?? '')
+  const type: QuestionAnswer['type'] =
+    q.type === 'MULTI' ? 'multiple' : q.type === 'FILL_BLANK' ? 'short' : 'single'
+
+  const correctIdx = options
+    .map((o, i) => (o.isCorrect ? i : -1))
+    .filter((i) => i >= 0)
+  const selectedIds: string[] = Array.isArray(ans.selectedOptionIds) ? ans.selectedOptionIds : []
+  const selIdx = options
+    .map((o, i) => (selectedIds.includes(o.id) ? i : -1))
+    .filter((i) => i >= 0)
+
+  let correct: QuestionAnswer['correct']
+  let studentAnswer: QuestionAnswer['studentAnswer']
+  if (type === 'short') {
+    correct = options.find((o) => o.isCorrect)?.optionText ?? ''
+    studentAnswer = ans.textAnswer ?? ''
+  } else if (type === 'multiple') {
+    correct = correctIdx
+    studentAnswer = selIdx
+  } else {
+    correct = correctIdx[0] ?? 0
+    studentAnswer = selIdx[0] ?? -1
+  }
+
+  const isCorrect =
+    ans.isCorrect ??
+    (type === 'short'
+      ? typeof correct === 'string' &&
+        correct !== '' &&
+        String(studentAnswer).trim().toLowerCase() === correct.toLowerCase()
+      : type === 'multiple'
+        ? JSON.stringify([...(correct as number[])].sort()) ===
+          JSON.stringify([...(studentAnswer as number[])].sort())
+        : studentAnswer === correct && (studentAnswer as number) >= 0)
+
+  return {
+    qi: index + 1,
+    text: q.questionText ?? '',
+    type,
+    options: optTexts,
+    correct,
+    studentAnswer,
+    isCorrect,
+  }
+}
+
+function mockGetAssignmentReview(assignmentId: string): AssignmentReview | null {
+  const a = seedAssignments.find((x) => String(x.id) === assignmentId)
+  if (!a) return null
+  const sub = mockStudentSubmission(a)
+  if (!sub?.completedAt) return null
+  return {
+    title: a.title,
+    status: 'GRADED',
+    score: sub.score,
+    maxScore: 10,
+    submittedAt: sub.completedAt,
+    answers: sub.answers,
+  }
+}
+
 // ── Curriculum ────────────────────────────────────────────────────
 
 export interface CurriculumSection {
@@ -220,6 +337,7 @@ export interface CurriculumSection {
   done: boolean
   score: number | null
   timeMin: number
+  completedAt?: string | null
 }
 
 export interface CurriculumChapter {
@@ -232,23 +350,42 @@ export interface CurriculumChapter {
 export async function getCurriculum(classId: string | undefined): Promise<CurriculumChapter[]> {
   try {
     const { data } = await api.get(`/students/me/classes/${classId}`)
-    return (data.curriculum ?? []) as CurriculumChapter[]
+    return ((data.curriculum ?? []) as CurriculumChapter[]).map((ch) => ({
+      ...ch,
+      sections: (ch.sections ?? []).map((s) => ({ ...s, timeMin: s.timeMin ?? 0 })),
+    }))
   } catch {
     return mockGetCurriculum(classId)
   }
 }
 
-const mockExerciseProgress: Record<string, { done: boolean; score: number | null; timeMin: number }> = {
-  e1: { done: true, score: 9.0, timeMin: 35 },
-  e2: { done: true, score: 8.5, timeMin: 42 },
-  e3: { done: false, score: null, timeMin: 0 },
-  e4: { done: true, score: 8.0, timeMin: 38 },
-  e4b: { done: false, score: null, timeMin: 0 },
-  e5: { done: true, score: 8.5, timeMin: 30 },
-  e6: { done: true, score: 7.5, timeMin: 25 },
-  e7: { done: false, score: null, timeMin: 0 },
-  e8: { done: true, score: 7.0, timeMin: 40 },
-  e9: { done: false, score: null, timeMin: 0 },
+const mockExerciseProgress: Record<
+  string,
+  { done: boolean; score: number | null; timeMin: number; completedAt: string | null }
+> = {
+  // Toán 10A
+  e1: { done: true, score: 9.0, timeMin: 35, completedAt: '2026-09-12T08:30:00' },
+  e2: { done: true, score: 8.5, timeMin: 42, completedAt: '2026-09-25T20:15:00' },
+  e10: { done: true, score: 8.0, timeMin: 30, completedAt: '2026-10-26T21:00:00' },
+  e3: { done: true, score: 6.5, timeMin: 48, completedAt: '2026-10-18T19:10:00' },
+  e11: { done: false, score: null, timeMin: 0, completedAt: null },
+  e12: { done: true, score: 7.5, timeMin: 15, completedAt: '2026-10-30T17:45:00' },
+  // Toán 11B
+  e4: { done: true, score: 8.0, timeMin: 38, completedAt: '2026-10-08T19:40:00' },
+  e13: { done: true, score: 9.0, timeMin: 36, completedAt: '2026-10-20T18:25:00' },
+  e4b: { done: true, score: 7.0, timeMin: 44, completedAt: '2026-10-27T20:30:00' },
+  e14: { done: false, score: null, timeMin: 0, completedAt: null },
+  // Lý 12C
+  e5: { done: true, score: 8.5, timeMin: 30, completedAt: '2026-10-15T21:05:00' },
+  e6: { done: true, score: 7.5, timeMin: 25, completedAt: '2026-10-24T18:20:00' },
+  e15: { done: true, score: 6.5, timeMin: 40, completedAt: '2026-10-10T20:00:00' },
+  e7: { done: true, score: 8.0, timeMin: 33, completedAt: '2026-10-30T19:50:00' },
+  e16: { done: false, score: null, timeMin: 0, completedAt: null },
+  // Hóa 10D
+  e8: { done: true, score: 7.0, timeMin: 40, completedAt: '2026-10-29T20:00:00' },
+  e17: { done: true, score: 8.5, timeMin: 32, completedAt: '2026-10-28T21:15:00' },
+  e9: { done: true, score: 6.0, timeMin: 28, completedAt: '2026-10-21T19:35:00' },
+  e18: { done: false, score: null, timeMin: 0, completedAt: null },
 }
 
 function mockGetCurriculum(classId: string | undefined): CurriculumChapter[] {
@@ -266,6 +403,7 @@ function mockGetCurriculum(classId: string | undefined): CurriculumChapter[] {
       done: mockExerciseProgress[ex.id]?.done ?? false,
       score: mockExerciseProgress[ex.id]?.score ?? null,
       timeMin: mockExerciseProgress[ex.id]?.timeMin ?? 0,
+      completedAt: mockExerciseProgress[ex.id]?.completedAt ?? null,
     })),
   }))
 }

@@ -5,7 +5,16 @@
 @tailwind utilities;
 
 @layer base {
-  html { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+  html {
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    scrollbar-gutter: stable;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button {
+    user-select: none;
+    -webkit-user-select: none;
+  }
 }
 
 @layer components {
@@ -151,6 +160,14 @@
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* AssignmentDetailCard — mobile <640px: 1 cột, nút full-width */
+@media (max-width: 640px) {
+  .adc-top { flex-direction: column !important; }
+  .adc-right { width: 100% !important; text-align: left !important; }
+  .adc-action { flex-direction: column !important; align-items: stretch !important; }
+  .adc-action .adc-btn { width: 100%; }
+}
 
 .nav-link {
   font-size: 14px; font-weight: 500; color: #6B7280;
