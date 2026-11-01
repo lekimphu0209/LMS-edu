@@ -107,6 +107,13 @@ export class ClassesService {
     const cls = await this.repository.findById(classId);
     if (!cls) throw new NotFoundException('Class not found');
 
+    // Re-activate enrollments previously marked REMOVED (unique pair already exists,
+    // so createMany+skipDuplicates alone would leave them REMOVED).
+    await this.prisma.classStudent.updateMany({
+      where: { classId, studentId: { in: dto.studentIds }, status: 'REMOVED' },
+      data: { status: 'ENROLLED', enrolledAt: new Date() },
+    });
+
     const data = dto.studentIds.map((studentId) => ({
       classId,
       studentId,

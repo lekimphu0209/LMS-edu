@@ -40,6 +40,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Raw SQL: lastLoginAt mới thêm vào schema — không phụ thuộc generated client.
+    void this.prisma
+      .$executeRaw`UPDATE users SET "lastLoginAt" = NOW() WHERE id = ${user.id}`
+      .catch(() => undefined);
+
     return this.generateTokens(user);
   }
 

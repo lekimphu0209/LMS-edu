@@ -5,7 +5,17 @@ import { PrismaService } from '../../database/prisma.service';
 export class StatisticsService {
   constructor(private prisma: PrismaService) {}
 
-  async getAdminOverview() {
+  async getAdminOverview(from?: string, to?: string) {
+    const range =
+      from || to
+        ? {
+            ...(from ? { gte: new Date(from) } : {}),
+            ...(to ? { lte: new Date(to) } : {}),
+          }
+        : undefined;
+    const where = range ? { createdAt: range } : {};
+    const enrollWhere = range ? { enrolledAt: range } : {};
+
     const [
       totalUsers,
       totalClasses,
@@ -14,32 +24,36 @@ export class StatisticsService {
       totalSubmissions,
       totalEnrolledStudents,
     ] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.class.count(),
-      this.prisma.question.count(),
-      this.prisma.assignment.count(),
-      this.prisma.submission.count(),
-      this.prisma.classStudent.count({ where: { status: 'ENROLLED' } }),
+      this.prisma.user.count({ where }),
+      this.prisma.class.count({ where }),
+      this.prisma.question.count({ where }),
+      this.prisma.assignment.count({ where }),
+      this.prisma.submission.count({ where }),
+      this.prisma.classStudent.count({ where: { status: 'ENROLLED', ...enrollWhere } }),
     ]);
 
     const usersByRole = await this.prisma.user.groupBy({
       by: ['role'],
       _count: true,
+      where,
     });
 
     const usersByStatus = await this.prisma.user.groupBy({
       by: ['status'],
       _count: true,
+      where,
     });
 
     const classesByStatus = await this.prisma.class.groupBy({
       by: ['status'],
       _count: true,
+      where,
     });
 
     const submissionsByStatus = await this.prisma.submission.groupBy({
       by: ['status'],
       _count: true,
+      where,
     });
 
     const roleCount = (role: string) =>
@@ -140,7 +154,7 @@ export class StatisticsService {
     };
   }
 
-  async getGrowth(from?: string, to?: string, interval: 'day' | 'week' | 'month' = 'month') {
+  async getGrowth(from?: string, to?: string, interval: 'day' | 'week' | 'month' | 'year' = 'month') {
     const start = from ? new Date(from) : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
     const end = to ? new Date(to) : new Date();
 
@@ -163,9 +177,110 @@ export class StatisticsService {
     return { from: start, to: end, interval, data: [...buckets.entries()].map(([date, counts]) => ({ date, ...counts })) };
   }
 
-  private formatDateByInterval(date: Date, interval: 'day' | 'week' | 'month'): string {
+  async getAdminInsights() {
+    const now = new Date();
+    const day = 24 * 60 * 60 * 1000;
+    const last7Start = new Date(now.getTime() - 7 * day);
+    const prev7Start = new Date(now.getTime() - 14 * day);
+    const staleStart = new Date(now.getTime() - 30 * day);
+
+    const [
+      classes,
+      enrollGroups,
+      unenrolledStudents,
+      inactiveTeachers,
+      newUsers7d,
+      prevUsers7d,
+      loginStats,
+      teacherGroups,
+    ] = await Promise.all([
+      this.prisma.class.findMany({
+        where: { status: 'ACTIVE' },
+        select: {
+          id: true,
+          name: true,
+          subject: true,
+          teacherId: true,
+          teacher: { select: { id: true, fullName: true, status: true } },
+        },
+      }),
+      this.prisma.classStudent.groupBy({
+        by: ['classId'],
+        where: { status: 'ENROLLED' },
+        _count: { _all: true },
+      }),
+      this.prisma.user.count({
+        where: {
+          role: 'STUDENT',
+          status: 'ACTIVE',
+          enrolledClasses: { none: { status: 'ENROLLED' } },
+        },
+      }),
+      this.prisma.user.count({ where: { role: 'TEACHER', status: 'INACTIVE' } }),
+      this.prisma.user.count({ where: { createdAt: { gte: last7Start } } }),
+      this.prisma.user.count({ where: { createdAt: { gte: prev7Start, lt: last7Start } } }),
+      // Raw SQL: lastLoginAt mới thêm vào schema, client có thể chưa regenerate —
+      // dùng raw để không phụ thuộc generated types; -1 nếu query lỗi (UI hiển thị '—').
+      this.prisma
+        .$queryRaw<[{ never_logged_in: number; stale: number }]>`
+          SELECT
+            COUNT(*) FILTER (WHERE "lastLoginAt" IS NULL)::int AS never_logged_in,
+            COUNT(*) FILTER (WHERE "lastLoginAt" < ${staleStart} AND status = 'ACTIVE')::int AS stale
+          FROM users
+        `
+        .then((r) => [r[0]?.never_logged_in ?? 0, r[0]?.stale ?? 0] as const)
+        .catch(() => [-1, -1] as const),
+      this.prisma.class.groupBy({
+        by: ['teacherId'],
+        where: { status: 'ACTIVE' },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const [neverLoggedIn, staleUsers] = loginStats;
+
+    const enrollMap = new Map(enrollGroups.map((g) => [g.classId, g._count._all]));
+    const withCount = classes.map((c) => ({ ...c, enrolled: enrollMap.get(c.id) ?? 0 }));
+
+    const teacherNameMap = new Map(classes.map((c) => [c.teacherId, c.teacher.fullName]));
+
+    const subjectMap = new Map<string, number>();
+    for (const c of classes) {
+      subjectMap.set(c.subject, (subjectMap.get(c.subject) ?? 0) + 1);
+    }
+
+    return {
+      attention: {
+        classesInactiveTeacher: classes.filter((c) => c.teacher.status === 'INACTIVE').length,
+        classesNoStudents: withCount.filter((c) => c.enrolled === 0).length,
+        unenrolledStudents,
+        inactiveTeachers,
+      },
+      rankings: {
+        topClasses: withCount
+          .sort((a, b) => b.enrolled - a.enrolled)
+          .slice(0, 5)
+          .map((c) => ({ name: c.name, subject: c.subject, students: c.enrolled })),
+        topTeachers: teacherGroups
+          .map((g) => ({
+            name: teacherNameMap.get(g.teacherId) ?? '—',
+            classes: g._count._all,
+          }))
+          .sort((a, b) => b.classes - a.classes)
+          .slice(0, 5),
+      },
+      subjects: [...subjectMap.entries()]
+        .map(([subject, count]) => ({ subject, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6),
+      activity: { newUsers7d, prevUsers7d, neverLoggedIn, staleUsers },
+    };
+  }
+
+  private formatDateByInterval(date: Date, interval: 'day' | 'week' | 'month' | 'year'): string {
     const d = new Date(date);
     if (interval === 'day') return d.toISOString().slice(0, 10);
+    if (interval === 'year') return d.toISOString().slice(0, 4);
     if (interval === 'week') {
       const startOfWeek = new Date(d);
       startOfWeek.setDate(d.getDate() - d.getDay());

@@ -15,8 +15,8 @@ export class AdminStatisticsController {
 
   @Get('overview')
   @ApiOperation({ summary: 'Admin overview statistics' })
-  async overview() {
-    return this.statisticsService.getAdminOverview();
+  async overview(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.statisticsService.getAdminOverview(from, to);
   }
 
   @Get('growth')
@@ -26,8 +26,14 @@ export class AdminStatisticsController {
     @Query('to') to?: string,
     @Query('interval') interval?: string,
   ) {
-    const validInterval = (interval as 'day' | 'week' | 'month') || 'month';
+    const validInterval = (interval as 'day' | 'week' | 'month' | 'year') || 'month';
     return this.statisticsService.getGrowth(from, to, validInterval);
+  }
+
+  @Get('insights')
+  @ApiOperation({ summary: 'Admin management insights' })
+  async insights() {
+    return this.statisticsService.getAdminInsights();
   }
 
   @Get('questions')

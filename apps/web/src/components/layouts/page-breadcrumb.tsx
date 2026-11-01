@@ -26,6 +26,7 @@ const staticLabels: Record<string, string> = {
 const adminRoleLabels: Record<string, string> = {
   STUDENT: 'Học sinh',
   TEACHER: 'Giáo viên',
+  ADMIN: 'Quản trị viên',
 };
 
 function labelFor(path: string, search: string): string | null {
@@ -66,6 +67,7 @@ export function PageBreadcrumb({ homePath }: { homePath: string }) {
       const path = '/' + segments.slice(0, i + 1).join('/');
       if (path === homePath) return;
       const isLast = i === segments.length - 1;
+      if (path === '/admin' && !isLast) return;
       const label = labelFor(path, isLast ? search : '');
       if (label) crumbs.push({ label, path: isLast ? path + search : path });
     });

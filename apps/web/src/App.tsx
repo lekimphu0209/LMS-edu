@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ProtectedRoute } from '@/components/protected-route';
+import { Toaster } from '@/components/ui/toaster';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { ProfilePage } from '@/features/auth/pages/ProfilePage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
@@ -64,6 +65,14 @@ export function App() {
               element={
                 <ProtectedRoute roles={['ADMIN']}>
                   <AdminClassesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/statistics"
+              element={
+                <ProtectedRoute roles={['ADMIN']}>
+                  <StatisticsPage />
                 </ProtectedRoute>
               }
             />
@@ -137,6 +146,7 @@ export function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+          <Toaster />
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

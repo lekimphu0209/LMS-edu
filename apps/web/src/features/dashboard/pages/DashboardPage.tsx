@@ -1,46 +1,97 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Users, GraduationCap, BarChart3, BookOpen, Shield, FileQuestion, ClipboardList, Pencil, MessageCircle } from 'lucide-react';
+import {
+  GraduationCap, BookOpen, FileQuestion, ClipboardList, Pencil, MessageCircle,
+  Users, UserPlus, ChevronRight, TrendingUp, TrendingDown, CheckCircle2,
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/auth-context';
 import { DashboardLayout } from '@/components/layouts/dashboard-layout';
 
-type SeriesKey = 'students' | 'teachers' | 'classes';
+type SeriesKey = 'students' | 'teachers' | 'total';
 
-const allMonths = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
-const allData: Record<SeriesKey, number[]> = {
-  students: [940, 980, 1020, 1055, 1090, 1130, 1170, 1215, 1248, 1280, 1310, 1340],
-  teachers: [68, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92],
-  classes: [88, 95, 99, 104, 108, 113, 118, 121, 124, 128, 132, 136],
-};
+type IntervalKey = 'day' | 'month' | 'year';
+
+interface GrowthPoint {
+  date: string;
+  teachers: number;
+  students: number;
+  total: number;
+}
+
+interface AdminInsights {
+  attention: {
+    classesInactiveTeacher: number;
+    classesNoStudents: number;
+    unenrolledStudents: number;
+    inactiveTeachers: number;
+  };
+  rankings: {
+    topClasses: { name: string; subject: string; students: number }[];
+    topTeachers: { name: string; classes: number }[];
+  };
+  subjects: { subject: string; count: number }[];
+  activity: { newUsers7d: number; prevUsers7d: number; neverLoggedIn: number; staleUsers: number };
+}
 
 const seriesMeta: { key: SeriesKey; label: string; color: string }[] = [
+  { key: 'total', label: 'Tổng', color: '#7C3AED' },
   { key: 'students', label: 'Học sinh', color: '#2563EB' },
   { key: 'teachers', label: 'Giáo viên', color: '#22C55E' },
-  { key: 'classes', label: 'Lớp học', color: '#F59E0B' },
 ];
+
+const PRESETS: { key: string; label: string }[] = [
+  { key: 'custom', label: 'Tùy chọn' },
+  { key: '7d', label: '7 ngày' },
+  { key: '30d', label: '30 ngày' },
+  { key: '6m', label: '6 tháng' },
+  { key: '12m', label: '12 tháng' },
+  { key: 'ytd', label: 'Năm nay' },
+  { key: 'all', label: 'Toàn bộ' },
+];
+
+const INTERVALS: { key: IntervalKey; label: string }[] = [
+  { key: 'day', label: 'Ngày' },
+  { key: 'month', label: 'Tháng' },
+  { key: 'year', label: 'Năm' },
+];
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const toISODate = (d: Date) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const daysAgo = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+};
+const monthsAgo = (n: number) => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() - n, 1);
+};
 
 const formatNumber = (n: number | undefined) => (n ?? 0).toLocaleString('vi-VN');
 const formatValue = (v: string | number | undefined) => (v === undefined ? '—' : String(v));
 
 interface LineChartProps {
-  months: string[];
+  labels: string[];
+  titles: string[];
   data: Record<SeriesKey, number[]>;
   active: Set<string>;
 }
 
-function LineChart({ months, data, active }: LineChartProps) {
+function LineChart({ labels, titles, data, active }: LineChartProps) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const W = 700;
-  const H = 240;
+  const W = 640;
+  const H = 200;
   const padL = 12;
   const padR = 40;
-  const padT = 20;
-  const padB = 32;
+  const padT = 16;
+  const padB = 26;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
-  const n = months.length;
+  const n = labels.length;
+  const labelStep = Math.max(1, Math.ceil(n / 12));
   const visible = seriesMeta.filter((s) => active.has(s.key));
   const allVals = visible.flatMap((s) => data[s.key]);
   const globalMin = allVals.length ? Math.min(...allVals) * 0.93 : 0;
@@ -85,12 +136,14 @@ function LineChart({ months, data, active }: LineChartProps) {
             </g>
           );
         })}
-        {months.map((m, i) => (
-          <text key={m} x={toX(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="#9CA3AF">
-            {m}
-          </text>
-        ))}
-        {months.map((_, i) => (
+        {labels.map((m, i) =>
+          i % labelStep === 0 || i === n - 1 ? (
+            <text key={i} x={toX(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="#9CA3AF">
+              {m}
+            </text>
+          ) : null,
+        )}
+        {labels.map((_, i) => (
           <rect
             key={i}
             x={toX(i) - innerW / n / 2}
@@ -146,7 +199,7 @@ function LineChart({ months, data, active }: LineChartProps) {
             transform: hovered > n - 3 ? 'translateX(calc(-100% - 24px))' : undefined,
           }}
         >
-          <div className="mb-2 text-xs font-bold text-[#374151]">{months[hovered]} / 2026</div>
+          <div className="mb-2 text-xs font-bold text-[#374151]">{titles[hovered] ?? labels[hovered]}</div>
           {paths.map((p) => (
             <div key={p.key} className="mb-1 flex items-center justify-between gap-3 text-xs last:mb-0">
               <div className="flex items-center gap-1.5">
@@ -162,22 +215,152 @@ function LineChart({ months, data, active }: LineChartProps) {
   );
 }
 
+interface DonutSlice {
+  label: string;
+  value: number;
+  color: string;
+}
+
+function Donut({ slices, size = 104 }: { slices: DonutSlice[]; size?: number }) {
+  const total = slices.reduce((s, x) => s + x.value, 0);
+  const r = 40;
+  const c = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" className="shrink-0 -rotate-90">
+      <circle cx="50" cy="50" r={r} fill="none" stroke="#F3F4F6" strokeWidth="12" />
+      {total > 0 &&
+        slices.map((s) => {
+          const len = (s.value / total) * c;
+          const el = (
+            <circle
+              key={s.label}
+              cx="50"
+              cy="50"
+              r={r}
+              fill="none"
+              stroke={s.color}
+              strokeWidth="12"
+              strokeDasharray={`${len} ${c - len}`}
+              strokeDashoffset={-offset}
+            />
+          );
+          offset += len;
+          return el;
+        })}
+    </svg>
+  );
+}
+
 function AdminDashboard() {
-  const { data } = useQuery({
+  const { data, isPending: overviewPending } = useQuery({
     queryKey: ['statistics', 'admin'],
     queryFn: async () => (await api.get('/statistics/admin')).data,
   });
-  const [range, setRange] = useState(8);
-  const [active, setActive] = useState<Set<string>>(new Set(['students', 'teachers', 'classes']));
-  const months = useMemo(() => allMonths.slice(0, range), [range]);
-  const sData = useMemo(
-    () => ({
-      students: allData.students.slice(0, range),
-      teachers: allData.teachers.slice(0, range),
-      classes: allData.classes.slice(0, range),
-    }),
-    [range],
+  const { data: insights, isPending: insightsPending } = useQuery<AdminInsights>({
+    queryKey: ['admin-insights'],
+    queryFn: async () => (await api.get('/admin/stats/insights')).data,
+  });
+  const navigate = useNavigate();
+  const today = toISODate(new Date());
+  const [preset, setPreset] = useState('6m');
+  const [from, setFrom] = useState(() => toISODate(monthsAgo(5)));
+  const [to, setTo] = useState(today);
+  const [active, setActive] = useState<Set<string>>(new Set(['students', 'teachers', 'total']));
+  const [rankTab, setRankTab] = useState<'classes' | 'teachers'>('classes');
+
+  // Gộp theo ngày/tháng/năm tự suy ra từ độ dài khoảng ngày.
+  const interval: IntervalKey = useMemo(() => {
+    if (!from || !to) return 'month';
+    const start = new Date(`${from}T00:00:00`);
+    const end = new Date(`${to}T00:00:00`);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return 'month';
+    const diffDays = (end.getTime() - start.getTime()) / 86_400_000;
+    return diffDays <= 62 ? 'day' : diffDays <= 31 * 24 ? 'month' : 'year';
+  }, [from, to]);
+
+  const { data: growth } = useQuery<{ data: GrowthPoint[] }>({
+    queryKey: ['admin-growth', from, to, interval],
+    queryFn: async () =>
+      (
+        await api.get('/admin/stats/growth', {
+          params: {
+            interval,
+            from: from || undefined,
+            to: to ? `${to}T23:59:59` : undefined,
+          },
+        })
+      ).data,
+  });
+
+  const bucketMap = useMemo(
+    () => new Map((growth?.data ?? []).map((p) => [p.date, p] as const)),
+    [growth],
   );
+
+  const { labels, titles, sData, rangeInvalid } = useMemo(() => {
+    const start = new Date(`${from}T00:00:00`);
+    const end = new Date(`${to}T00:00:00`);
+    const empty = {
+      labels: [] as string[],
+      titles: [] as string[],
+      sData: { students: [] as number[], teachers: [] as number[], total: [] as number[] },
+      rangeInvalid: false,
+    };
+    if (!from || !to) return empty;
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+      return { ...empty, rangeInvalid: true };
+    }
+    const keys: string[] = [];
+    if (interval === 'day') {
+      for (let d = new Date(start); d <= end && keys.length < 370; d.setDate(d.getDate() + 1)) {
+        keys.push(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`);
+      }
+    } else if (interval === 'month') {
+      for (
+        let d = new Date(start.getFullYear(), start.getMonth(), 1);
+        d <= end && keys.length < 60;
+        d.setMonth(d.getMonth() + 1)
+      ) {
+        keys.push(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}`);
+      }
+    } else {
+      for (let y = start.getFullYear(); y <= end.getFullYear() && keys.length < 20; y++) {
+        keys.push(String(y));
+      }
+    }
+    const label = (k: string) =>
+      interval === 'day' ? `${k.slice(8)}/${k.slice(5, 7)}` : interval === 'month' ? 'T' + Number(k.slice(5)) : k;
+    const title = (k: string) =>
+      interval === 'day'
+        ? `Ngày ${k.slice(8)}/${k.slice(5, 7)}/${k.slice(0, 4)}`
+        : interval === 'month'
+          ? `Tháng ${Number(k.slice(5))}/${k.slice(0, 4)}`
+          : `Năm ${k}`;
+    return {
+      labels: keys.map(label),
+      titles: keys.map(title),
+      sData: {
+        students: keys.map((k) => bucketMap.get(k)?.students ?? 0),
+        teachers: keys.map((k) => bucketMap.get(k)?.teachers ?? 0),
+        total: keys.map((k) => bucketMap.get(k)?.total ?? 0),
+      },
+      rangeInvalid: false,
+    };
+  }, [from, to, interval, bucketMap]);
+
+  const applyPreset = (p: string) => {
+    setPreset(p);
+    setTo(today);
+    if (p === '7d') setFrom(toISODate(daysAgo(6)));
+    else if (p === '30d') setFrom(toISODate(daysAgo(29)));
+    else if (p === '6m') setFrom(toISODate(monthsAgo(5)));
+    else if (p === '12m') setFrom(toISODate(monthsAgo(11)));
+    else if (p === 'ytd') setFrom(`${new Date().getFullYear()}-01-01`);
+    else if (p === 'all') setFrom('2020-01-01');
+    // 'custom' chỉ đánh dấu — giữ nguyên from/to hiện tại.
+  };
+
   const toggle = (key: string) =>
     setActive((prev) => {
       const n = new Set(prev);
@@ -186,187 +369,461 @@ function AdminDashboard() {
       return n;
     });
 
-  const statCards = [
+  const pctOf = (a?: number, b?: number) => (b ? Math.round(((a ?? 0) / b) * 100) : 0);
+
+  const kpis = [
     {
-      label: 'Tổng học sinh',
+      label: 'Học sinh',
       value: data?.totalStudents,
-      change: `${data?.activeUsers ?? 0} người dùng đang hoạt động`,
+      sub: `${formatNumber(insights?.attention.unenrolledStudents)} chưa ghi danh lớp`,
       icon: Users,
       color: '#2563EB',
-      bg: '#EFF6FF',
+      path: '/admin?role=STUDENT',
     },
     {
-      label: 'Tổng giáo viên',
+      label: 'Giáo viên',
       value: data?.totalTeachers,
-      change: `${data?.activeClasses ?? 0} lớp đang hoạt động`,
-      icon: Users,
-      color: '#22C55E',
-      bg: '#F0FDF4',
+      sub: `${formatNumber(insights?.attention.inactiveTeachers)} đang bị khóa`,
+      icon: BookOpen,
+      color: '#16A34A',
+      path: '/admin?role=TEACHER',
     },
     {
-      label: 'Tổng lớp học',
+      label: 'Lớp học',
       value: data?.totalClasses,
-      change: `${data?.inactiveClasses ?? 0} lớp đã khóa`,
+      sub: `${formatNumber(data?.activeClasses)} đang mở · ${formatNumber(data?.inactiveClasses)} đã đóng`,
       icon: GraduationCap,
-      color: '#F59E0B',
-      bg: '#FFFBEB',
+      color: '#D97706',
+      path: '/admin/classes',
     },
     {
-      label: 'Tỉ lệ hoàn thành TB',
-      value: data?.completionRate != null ? `${data.completionRate}%` : '—',
-      change: `${data?.pendingSubmissions ?? 0} bài chờ chấm`,
-      icon: BarChart3,
+      label: 'Tài khoản mới · 7 ngày',
+      value: insights?.activity.newUsers7d,
+      sub: `Kỳ trước: ${formatNumber(insights?.activity.prevUsers7d)}`,
+      icon: UserPlus,
       color: '#7C3AED',
-      bg: '#F5F3FF',
+      path: '',
+      delta: insights ? insights.activity.newUsers7d - insights.activity.prevUsers7d : undefined,
     },
   ];
 
-  const summary = [
+  const roleSlices: DonutSlice[] = [
+    { label: 'Học sinh', value: data?.totalStudents ?? 0, color: '#2563EB' },
+    { label: 'Giáo viên', value: data?.totalTeachers ?? 0, color: '#22C55E' },
+    { label: 'Quản trị', value: data?.totalAdmins ?? 0, color: '#7C3AED' },
+  ];
+
+  const activeClassPct = pctOf(data?.activeClasses, data?.totalClasses);
+  const avgPerClass = data?.activeClasses
+    ? ((data?.totalEnrolledStudents ?? 0) / data.activeClasses).toFixed(1)
+    : '—';
+
+  const attentionRows = [
     {
-      title: 'Người dùng',
-      color: '#7C3AED',
-      icon: Shield,
-      items: [
-        { label: 'Tổng người dùng', value: `${formatNumber(data?.totalUsers)} người` },
-        { label: 'Đang hoạt động', value: `${formatNumber(data?.activeUsers)} người` },
-        { label: 'Đã bị khóa', value: `${formatNumber(data?.inactiveUsers)} người` },
-      ],
+      label: 'Lớp có giáo viên bị khóa',
+      hint: 'Cần phân công lại giáo viên',
+      value: insights?.attention.classesInactiveTeacher ?? 0,
+      path: '/admin/classes',
     },
     {
-      title: 'Giáo viên',
-      color: '#2563EB',
-      icon: BookOpen,
-      items: [
-        { label: 'Tổng giáo viên', value: `${formatNumber(data?.totalTeachers)} người` },
-        { label: 'Tổng bài tập đã giao', value: `${formatNumber(data?.totalAssignments)} bài` },
-        { label: 'Bài chờ chấm điểm', value: `${formatNumber(data?.pendingSubmissions)} bài` },
-      ],
+      label: 'Lớp chưa có học sinh',
+      hint: 'Ghi danh học sinh vào lớp',
+      value: insights?.attention.classesNoStudents ?? 0,
+      path: '/admin/classes',
     },
     {
-      title: 'Học sinh & Lớp học',
-      color: '#22C55E',
-      icon: Users,
-      items: [
-        { label: 'Tổng học sinh', value: `${formatNumber(data?.totalStudents)} học sinh` },
-        { label: 'HS đã ghi danh', value: `${formatNumber(data?.totalEnrolledStudents)} học sinh` },
-        { label: 'Tỉ lệ hoàn thành TB', value: `${data?.completionRate ?? '—'}%` },
-      ],
+      label: 'Học sinh chưa vào lớp',
+      hint: 'Tài khoản đang hoạt động, chưa ghi danh',
+      value: insights?.attention.unenrolledStudents ?? 0,
+      path: '/admin?role=STUDENT',
+    },
+    {
+      label: 'Giáo viên bị khóa',
+      hint: 'Kiểm tra hoặc kích hoạt lại',
+      value: insights?.attention.inactiveTeachers ?? 0,
+      path: '/admin?role=TEACHER&status=INACTIVE',
     },
   ];
+  const attentionTotal = attentionRows.reduce((s, r) => s + r.value, 0);
+  const busy = overviewPending || insightsPending;
+  const rankRows =
+    rankTab === 'classes'
+      ? (insights?.rankings.topClasses ?? []).map((c) => ({ name: c.name, sub: c.subject, value: c.students, unit: 'HS' }))
+      : (insights?.rankings.topTeachers ?? []).map((t) => ({ name: t.name, sub: '', value: t.classes, unit: 'lớp' }));
+  const maxRank = Math.max(1, ...rankRows.map((r) => r.value));
+  const maxSubjectCount = Math.max(1, ...(insights?.subjects ?? []).map((s) => s.count));
 
   return (
-    <div className="space-y-7">
-      <div>
-        <h1 className="page-title">Tổng quan hệ thống</h1>
-        <p className="mt-1 text-sm text-[#6B7280]">
-          Chào mừng trở lại! Hôm nay là{' '}
-          {new Date().toLocaleDateString('vi-VN', {
-            weekday: 'long',
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-          })}
-        </p>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-4">
-        {statCards.map((c) => (
-          <div key={c.label} className="stat-card relative overflow-hidden">
-            <div className="mb-4 flex items-start justify-between">
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-xl"
-                style={{ background: c.bg, color: c.color }}
-              >
-                <c.icon className="h-5 w-5" />
-              </div>
-              <span className="rounded-full border border-gray-100 bg-[#F9FAFB] px-2 py-0.5 text-[11px] text-[#6B7280]">
-                ↑ Tháng này
-              </span>
-            </div>
-            <div className="font-display text-[30px] font-extrabold leading-none text-[#111827]">
-              {formatValue(c.value)}
-            </div>
-            <div className="mt-1 text-sm text-[#6B7280]">{c.label}</div>
-            <div className="mt-2 text-xs font-medium" style={{ color: c.color }}>
-              {c.change}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card p-7">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h3 className="section-title">Thống kê tăng trưởng hệ thống</h3>
-            <p className="text-xs text-[#9CA3AF]">Số liệu theo tháng trong năm 2026</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {seriesMeta.map((s) => {
-              const on = active.has(s.key);
-              return (
-                <button
-                  key={s.key}
-                  onClick={() => toggle(s.key)}
-                  className="flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all"
-                  style={{
-                    borderColor: on ? s.color : '#E5E7EB',
-                    background: on ? s.color + '15' : 'white',
-                    color: on ? s.color : '#9CA3AF',
-                  }}
-                >
-                  <span className="h-2 w-2 rounded-full" style={{ background: on ? s.color : '#D1D5DB' }} />
-                  {s.label}
-                </button>
-              );
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="page-title">Tổng quan hệ thống</h1>
+          <p className="mt-0.5 text-xs text-[#9CA3AF]">
+            {new Date().toLocaleDateString('vi-VN', {
+              weekday: 'long',
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
             })}
-            <div className="flex rounded-[10px] bg-[#F3F4F6] p-1">
-              {[3, 6, 12].map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRange(r)}
-                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                    range === r
-                      ? 'bg-white text-[#111827] shadow-sm'
-                      : 'text-[#9CA3AF] hover:text-[#374151]'
-                  }`}
-                >
-                  {r === 3 ? '3 tháng' : r === 6 ? '6 tháng' : '12 tháng'}
-                </button>
-              ))}
-            </div>
-          </div>
+            {' · '}
+            {overviewPending ? (
+              <span className="text-[#D1D5DB]">đang tải số liệu…</span>
+            ) : (
+              <>{formatNumber(data?.totalUsers)} tài khoản · {formatNumber(data?.activeUsers)} đang hoạt động</>
+            )}
+          </p>
         </div>
-        <LineChart months={months} data={sData} active={active} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        {summary.map((s) => {
-          const Icon = s.icon;
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        {kpis.map((k) => {
+          const Icon = k.icon;
+          const clickable = !!k.path;
           return (
-            <div key={s.title} className="card p-6" style={{ borderTop: `3px solid ${s.color}` }}>
-              <div className="mb-4 flex items-center gap-2.5">
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-[10px]"
-                  style={{ background: s.color + '15', color: s.color }}
-                >
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="font-display text-[15px] font-bold text-[#111827]">{s.title}</div>
-                  <div className="text-xs text-[#9CA3AF]">Tóm tắt</div>
-                </div>
+            <div
+              key={k.label}
+              onClick={clickable ? () => navigate(k.path) : undefined}
+              className={`card group flex items-start gap-3.5 p-4 ${
+                clickable ? 'cursor-pointer transition-shadow hover:shadow-md' : ''
+              }`}
+            >
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                style={{ background: k.color + '14', color: k.color }}
+              >
+                <Icon className="h-5 w-5" />
               </div>
-              <div className="flex flex-col gap-2.5">
-                {s.items.map((i) => (
-                  <div key={i.label} className="flex items-center justify-between rounded-lg bg-[#F9FAFB] px-3 py-2">
-                    <span className="text-xs text-[#374151]">{i.label}</span>
-                    <span className="text-xs font-bold text-[#111827]">{i.value}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs font-medium text-[#6B7280]">{k.label}</span>
+                  {clickable && (
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#D1D5DB] transition-colors group-hover:text-[#6B7280]" />
+                  )}
+                </div>
+                {busy ? (
+                  <div className="mt-1.5 flex flex-col gap-1.5">
+                    <div className="h-6 w-16 animate-pulse rounded bg-[#F3F4F6]" />
+                    <div className="h-3 w-24 animate-pulse rounded bg-[#F3F4F6]" />
                   </div>
-                ))}
+                ) : (
+                  <>
+                    <div className="mt-0.5 flex items-baseline gap-2">
+                      <span className="font-display text-2xl font-extrabold leading-tight text-[#111827]">
+                        {formatValue(k.value)}
+                      </span>
+                      {k.delta !== undefined && (
+                        <span
+                          className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                            k.delta >= 0 ? 'bg-[#F0FDF4] text-[#16A34A]' : 'bg-[#FEF2F2] text-[#DC2626]'
+                          }`}
+                        >
+                          {k.delta >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                          {k.delta >= 0 ? '+' : ''}
+                          {formatNumber(k.delta)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 truncate text-[11px] text-[#9CA3AF]">{k.sub}</div>
+                  </>
+                )}
               </div>
             </div>
           );
         })}
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="card p-5 lg:col-span-2">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3 className="font-display text-[15px] font-bold text-[#111827]">Tăng trưởng người dùng</h3>
+              <p className="mt-0.5 text-xs text-[#9CA3AF]">
+                {from && to
+                  ? `${from.split('-').reverse().join('/')} → ${to.split('-').reverse().join('/')}`
+                  : 'Tài khoản đăng ký'}
+                {' · '}Gộp theo {INTERVALS.find((i) => i.key === interval)?.label.toLowerCase()}
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {seriesMeta.map((s) => {
+                  const on = active.has(s.key);
+                  return (
+                    <button
+                      key={s.key}
+                      onClick={() => toggle(s.key)}
+                      className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all"
+                      style={{
+                        borderColor: on ? s.color : '#E5E7EB',
+                        background: on ? s.color + '15' : 'white',
+                        color: on ? s.color : '#9CA3AF',
+                      }}
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ background: on ? s.color : '#D1D5DB' }} />
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="h-8 rounded-lg border border-[#E5E7EB] bg-white px-2 text-xs font-medium text-[#374151]"
+                  value={preset}
+                  onChange={(e) => applyPreset(e.target.value)}
+                >
+                  {PRESETS.map((p) => (
+                    <option key={p.key} value={p.key}>{p.label}</option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  className="h-8 rounded-lg border border-[#E5E7EB] px-2 text-xs text-[#374151]"
+                  value={from}
+                  max={to || today}
+                  onChange={(e) => { setPreset('custom'); setFrom(e.target.value); }}
+                />
+                <span className="text-xs text-[#9CA3AF]">→</span>
+                <input
+                  type="date"
+                  className="h-8 rounded-lg border border-[#E5E7EB] px-2 text-xs text-[#374151]"
+                  value={to}
+                  min={from || undefined}
+                  max={today}
+                  onChange={(e) => { setPreset('custom'); setTo(e.target.value); }}
+                />
+              </div>
+            </div>
+          </div>
+          {rangeInvalid ? (
+            <div className="flex h-48 items-center justify-center text-sm text-[#9CA3AF]">
+              Khoảng ngày không hợp lệ — ngày bắt đầu phải trước hoặc bằng ngày kết thúc
+            </div>
+          ) : labels.length === 0 ? (
+            <div className="flex h-48 items-center justify-center text-sm text-[#9CA3AF]">
+              Hãy chọn khoảng thời gian để xem thống kê
+            </div>
+          ) : sData.total.every((v) => v === 0) ? (
+            <div className="flex h-48 items-center justify-center text-sm text-[#9CA3AF]">
+              Chưa có người dùng mới trong khoảng thời gian này
+            </div>
+          ) : (
+            <LineChart labels={labels} titles={titles} data={sData} active={active} />
+          )}
+      </div>
+
+      <div className="card flex flex-col p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-display text-[15px] font-bold text-[#111827]">Cần xử lý</h3>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              insightsPending
+                ? 'bg-[#F3F4F6] text-[#9CA3AF]'
+                : attentionTotal
+                  ? 'bg-[#FEF3C7] text-[#B45309]'
+                  : 'bg-[#F0FDF4] text-[#16A34A]'
+            }`}
+          >
+            {insightsPending ? '…' : attentionTotal ? `${formatNumber(attentionTotal)} mục` : 'Ổn định'}
+          </span>
+        </div>
+        {insightsPending ? (
+          <div className="flex flex-col gap-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-[46px] animate-pulse rounded-lg bg-[#F9FAFB]" />
+            ))}
+          </div>
+        ) : (
+        <div className="flex flex-col divide-y divide-[#F3F4F6]">
+          {attentionRows.map((r) => (
+            <button
+              key={r.label}
+              type="button"
+              onClick={() => navigate(r.path)}
+              className="group flex items-center gap-3 py-2.5 text-left"
+            >
+              {r.value ? (
+                <span className="h-2 w-2 shrink-0 rounded-full bg-[#F59E0B]" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className={`truncate text-xs font-medium ${r.value ? 'text-[#111827]' : 'text-[#6B7280]'}`}>
+                  {r.label}
+                </div>
+                <div className="truncate text-[11px] text-[#9CA3AF]">{r.hint}</div>
+              </div>
+              <span className={`text-sm font-bold ${r.value ? 'text-[#B45309]' : 'text-[#D1D5DB]'}`}>
+                {formatNumber(r.value)}
+              </span>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#D1D5DB] transition-colors group-hover:text-[#6B7280]" />
+            </button>
+          ))}
+        </div>
+        )}
+        <div className="mt-auto grid grid-cols-2 gap-2 border-t border-[#F3F4F6] pt-3">
+          <div className="rounded-lg bg-[#F9FAFB] px-3 py-2">
+            <div className="text-[11px] text-[#9CA3AF]">Chưa từng đăng nhập</div>
+            <div className="mt-0.5 text-sm font-bold text-[#111827]">
+              {(insights?.activity.neverLoggedIn ?? -1) < 0 ? '—' : formatNumber(insights?.activity.neverLoggedIn)}
+            </div>
+          </div>
+          <div className="rounded-lg bg-[#F9FAFB] px-3 py-2">
+            <div className="text-[11px] text-[#9CA3AF]">Vắng mặt &gt; 30 ngày</div>
+            <div className="mt-0.5 text-sm font-bold text-[#111827]">
+              {(insights?.activity.staleUsers ?? -1) < 0 ? '—' : formatNumber(insights?.activity.staleUsers)}
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="card p-5">
+          <h3 className="mb-4 font-display text-[15px] font-bold text-[#111827]">Cơ cấu người dùng</h3>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Donut slices={roleSlices} size={96} />
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="font-display text-base font-extrabold leading-none text-[#111827]">
+                  {formatValue(data?.totalUsers)}
+                </span>
+                <span className="text-[10px] text-[#9CA3AF]">tài khoản</span>
+              </div>
+            </div>
+            <div className="flex flex-1 flex-col gap-1.5">
+              {roleSlices.map((s) => (
+                <div key={s.label} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
+                    <span className="text-[#6B7280]">{s.label}</span>
+                  </div>
+                  {overviewPending ? (
+                    <div className="h-3 w-10 animate-pulse rounded bg-[#F3F4F6]" />
+                  ) : (
+                    <span className="font-bold text-[#111827]">
+                      {formatNumber(s.value)}
+                      <span className="ml-1 font-normal text-[#9CA3AF]">{pctOf(s.value, data?.totalUsers)}%</span>
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 border-t border-[#F3F4F6] pt-3">
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="text-[#6B7280]">Lớp đang mở</span>
+              {overviewPending ? (
+                <div className="h-3 w-16 animate-pulse rounded bg-[#F3F4F6]" />
+              ) : (
+                <span className="font-bold text-[#111827]">
+                  {formatNumber(data?.activeClasses)}/{formatNumber(data?.totalClasses)}
+                  <span className="ml-1 font-normal text-[#9CA3AF]">{activeClassPct}%</span>
+                </span>
+              )}
+            </div>
+            <div className="progress-bar-track h-1.5">
+              <div className="progress-bar-fill" style={{ width: `${activeClassPct}%`, background: '#22C55E' }} />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-[#F9FAFB] px-3 py-2">
+                <div className="text-[11px] text-[#9CA3AF]">Lượt ghi danh</div>
+                <div className="mt-0.5 text-sm font-bold text-[#111827]">
+                  {overviewPending ? <div className="h-4 w-10 animate-pulse rounded bg-[#E5E7EB]" /> : formatNumber(data?.totalEnrolledStudents)}
+                </div>
+              </div>
+              <div className="rounded-lg bg-[#F9FAFB] px-3 py-2">
+                <div className="text-[11px] text-[#9CA3AF]">TB HS / lớp mở</div>
+                <div className="mt-0.5 text-sm font-bold text-[#111827]">
+                  {overviewPending ? <div className="h-4 w-10 animate-pulse rounded bg-[#E5E7EB]" /> : avgPerClass}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-5">
+          <h3 className="mb-4 font-display text-[15px] font-bold text-[#111827]">Phân bố lớp theo môn</h3>
+          <div className="flex flex-col gap-2.5">
+            {insightsPending
+              ? [0, 1, 2, 3].map((i) => (
+                  <div key={i} className="h-6 animate-pulse rounded bg-[#F9FAFB]" />
+                ))
+              : (insights?.subjects ?? []).map((s) => (
+              <div key={s.subject}>
+                <div className="mb-0.5 flex items-center justify-between text-[11px]">
+                  <span className="truncate text-[#6B7280]">{s.subject}</span>
+                  <span className="font-bold text-[#111827]">{s.count}</span>
+                </div>
+                <div className="progress-bar-track h-1.5">
+                  <div
+                    className="progress-bar-fill"
+                    style={{ width: `${(s.count / maxSubjectCount) * 100}%`, background: '#2563EB' }}
+                  />
+                </div>
+              </div>
+            ))}
+            {!insightsPending && !(insights?.subjects ?? []).length && (
+              <p className="text-xs text-[#9CA3AF]">Chưa có lớp nào đang mở</p>
+            )}
+          </div>
+          <p className="mt-4 text-[11px] text-[#9CA3AF]">Chỉ tính các lớp đang mở</p>
+        </div>
+
+        <div className="card p-5">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h3 className="font-display text-[15px] font-bold text-[#111827]">Xếp hạng</h3>
+            <div className="flex rounded-lg bg-[#F3F4F6] p-0.5">
+              {([
+                ['classes', 'Lớp đông'],
+                ['teachers', 'Giáo viên'],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setRankTab(key)}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                    rankTab === key ? 'bg-white text-[#111827] shadow-sm' : 'text-[#9CA3AF] hover:text-[#374151]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            {insightsPending
+              ? [0, 1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-6 animate-pulse rounded bg-[#F9FAFB]" />
+                ))
+              : rankRows.map((r, i) => (
+              <div key={`${r.name}-${i}`}>
+                <div className="mb-0.5 flex items-center justify-between gap-2 text-xs">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold ${
+                        i === 0 ? 'bg-[#FEF3C7] text-[#B45309]' : 'bg-[#F3F4F6] text-[#6B7280]'
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="truncate text-[#374151]">{r.name}</span>
+                    {r.sub && <span className="hidden truncate text-[11px] text-[#9CA3AF] sm:inline">{r.sub}</span>}
+                  </span>
+                  <span className="shrink-0 font-bold text-[#111827]">
+                    {formatNumber(r.value)} <span className="font-normal text-[#9CA3AF]">{r.unit}</span>
+                  </span>
+                </div>
+                <div className="progress-bar-track h-1">
+                  <div
+                    className="progress-bar-fill"
+                    style={{ width: `${(r.value / maxRank) * 100}%`, background: rankTab === 'classes' ? '#D97706' : '#16A34A' }}
+                  />
+                </div>
+              </div>
+            ))}
+            {!insightsPending && !rankRows.length && <p className="text-xs text-[#9CA3AF]">Chưa có dữ liệu</p>}
+          </div>
+        </div>
       </div>
     </div>
   );
