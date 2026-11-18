@@ -1,3 +1,4 @@
+/** DTO bài tập: tạo/sửa đề + danh sách câu hỏi và target giao bài (lớp/học sinh, hạn). */
 import { IsString, IsOptional, IsArray, IsDateString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
@@ -22,6 +23,11 @@ export class CreateAssignmentDto {
   @IsString()
   title!: string;
 
+  @ApiProperty({ required: false, description: 'QUIZ (default) | SAVED | DRAFT' })
+  @IsOptional()
+  @IsString()
+  type?: string;
+
   @ApiProperty({ type: [AssignmentQuestionInputDto] })
   @IsArray()
   @ValidateNested({ each: true })
@@ -42,6 +48,18 @@ export class CreateAssignmentTargetDto {
   @IsString()
   studentId?: string;
 
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsDateString()
+  unlockDate?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
+}
+
+export class UpdateAssignmentTargetDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsDateString()

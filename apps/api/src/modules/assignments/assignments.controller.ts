@@ -1,12 +1,18 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AssignmentsService } from './assignments.service';
-import { CreateAssignmentDto, UpdateAssignmentDto, CreateAssignmentTargetDto } from './dto/assignment.dto';
+import {
+  CreateAssignmentDto,
+  UpdateAssignmentDto,
+  CreateAssignmentTargetDto,
+  UpdateAssignmentTargetDto,
+} from './dto/assignment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/** AssignmentsController — CRUD bài tập, giao bài qua targets và xem bài nộp theo bài tập. */
 @ApiTags('Assignments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -52,6 +58,17 @@ export class AssignmentsController {
   @ApiOperation({ summary: 'Assign to class or student' })
   async createTarget(@Param('id') id: string, @Body() dto: CreateAssignmentTargetDto) {
     return this.assignmentsService.createTarget(id, dto);
+  }
+
+  @Patch(':id/targets/:targetId')
+  @Roles('TEACHER', 'ADMIN')
+  @ApiOperation({ summary: 'Update assignment target dates' })
+  async updateTarget(
+    @Param('id') id: string,
+    @Param('targetId') targetId: string,
+    @Body() dto: UpdateAssignmentTargetDto,
+  ) {
+    return this.assignmentsService.updateTarget(id, targetId, dto);
   }
 
   @Get(':id/submissions')
