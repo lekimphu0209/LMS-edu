@@ -1,3 +1,8 @@
+/**
+ * StatisticsService — số liệu tổng hợp cho dashboard theo vai trò
+ * (admin/teacher/student), tăng trưởng theo thời gian và phân bổ câu hỏi.
+ * Đa số hàm là read-only aggregate, không thay đổi dữ liệu.
+ */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
@@ -5,6 +10,11 @@ import { PrismaService } from '../../database/prisma.service';
 export class StatisticsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Tổng quan cho admin: đếm người dùng/lớp/câu hỏi/bài tập/bài nộp,
+   * phân bổ theo role & trạng thái và tỉ lệ hoàn thành chấm điểm.
+   * `from`/`to` lọc theo createdAt của từng bảng.
+   */
   async getAdminOverview(from?: string, to?: string) {
     const range =
       from || to
@@ -93,6 +103,7 @@ export class StatisticsService {
     };
   }
 
+  /** Tổng quan giáo viên: lớp phụ trách, câu hỏi, bài tập, đề cương và sĩ số. */
   async getTeacherOverview(teacherId: string) {
     const [totalClasses, totalQuestions, totalAssignments, totalCurriculums] = await Promise.all([
       this.prisma.class.count({ where: { teacherId } }),
@@ -119,6 +130,10 @@ export class StatisticsService {
     };
   }
 
+  /**
+   * Tổng quan học sinh: số bài nộp, số bài đã chấm, điểm TB,
+   * và tổng thời gian học (ms) cộng từ các LearningSession đã kết thúc.
+   */
   async getStudentOverview(studentId: string) {
     const [totalSubmissions, gradedSubmissions, enrolledClasses] = await Promise.all([
       this.prisma.submission.count({ where: { studentId } }),
@@ -154,6 +169,10 @@ export class StatisticsService {
     };
   }
 
+  /**
+   * Số user mới tạo gom theo bucket ngày/tuần/tháng/năm (mặc định 1 năm gần nhất),
+   * tách teachers/students để vẽ biểu đồ tăng trưởng.
+   */
   async getGrowth(from?: string, to?: string, interval: 'day' | 'week' | 'month' | 'year' = 'month') {
     const start = from ? new Date(from) : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
     const end = to ? new Date(to) : new Date();
@@ -177,6 +196,11 @@ export class StatisticsService {
     return { from: start, to: end, interval, data: [...buckets.entries()].map(([date, counts]) => ({ date, ...counts })) };
   }
 
+  /**
+   * Insight cho dashboard admin: các vấn đề cần chú ý (lớp không GV/gV ẩn,
+   * học sinh chưa ghi danh...), top lớp/GV theo sĩ số, phân bổ môn học
+   * và hoạt động người dùng 7 ngày gần nhất.
+   */
   async getAdminInsights() {
     const now = new Date();
     const day = 24 * 60 * 60 * 1000;
@@ -277,6 +301,7 @@ export class StatisticsService {
     };
   }
 
+  /** Nhãn bucket thời gian cho getGrowth (week lấy ngày Chủ nhật tuần đó). */
   private formatDateByInterval(date: Date, interval: 'day' | 'week' | 'month' | 'year'): string {
     const d = new Date(date);
     if (interval === 'day') return d.toISOString().slice(0, 10);
@@ -289,6 +314,7 @@ export class StatisticsService {
     return d.toISOString().slice(0, 7);
   }
 
+  /** Đếm số câu hỏi gom theo giáo viên hoặc môn học. */
   async getQuestionStats(groupBy: 'teacher' | 'subject' = 'teacher') {
     const questions = await this.prisma.question.findMany({
       select: { subject: true, teacherId: true, teacher: { select: { fullName: true } } },
@@ -306,6 +332,7 @@ export class StatisticsService {
     return { groupBy, data: [...map.values()] };
   }
 
+  /** Thống kê file tải lên — schema chưa có bảng tracking nên trả rỗng. */
   async getFileStats(_groupBy: 'teacher' = 'teacher') {
     // File upload tracking is not yet implemented in the schema.
     return { data: [], message: 'File upload tracking not implemented' };

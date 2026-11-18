@@ -1,3 +1,4 @@
+/** DTO đề cương: CRUD chương/bài và payload thay toàn bộ cây (SetCurriculumStructureDto). */
 import { IsString, IsOptional, IsInt, IsEnum, Min, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';

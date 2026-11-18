@@ -1,3 +1,4 @@
+/** DTO cho quản trị người dùng: tạo/sửa tài khoản và reset mật khẩu. */
 import { IsString, IsEmail, IsEnum, IsOptional, IsBoolean } from 'class-validator';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 

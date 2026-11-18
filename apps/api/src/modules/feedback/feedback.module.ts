@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { FeedbackService } from './feedback.service';
 import { FeedbackController } from './feedback.controller';
 
+/** FeedbackModule — nhận xét bài nộp và hộp thư góp ý. */
 @Module({
   controllers: [FeedbackController],
   providers: [FeedbackService],

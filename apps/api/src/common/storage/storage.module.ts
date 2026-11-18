@@ -3,6 +3,7 @@ import { R2FileStorageService } from './r2-file-storage.service';
 
 export const FILE_STORAGE = Symbol('FILE_STORAGE');
 
+/** StorageModule — cung cấp FILE_STORAGE (Cloudflare R2) để upload/xóa file. */
 @Module({
   providers: [
     {

@@ -7,6 +7,10 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/**
+ * SubmissionsController — học sinh start/submit, giáo viên chấm điểm;
+ * GET /submissions liệt kê theo studentId hoặc assignmentTargetId.
+ */
 @ApiTags('Submissions')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

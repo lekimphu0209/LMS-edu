@@ -1,3 +1,4 @@
+/** DTO ngân hàng câu hỏi: option kèm đáp án đúng và payload tạo/sửa câu hỏi. */
 import {
   IsString,
   IsEnum,

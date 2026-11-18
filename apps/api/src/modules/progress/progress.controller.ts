@@ -6,6 +6,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/** ProgressController — snapshot tiến độ, phiên học và mốc học tập của học sinh. */
 @ApiTags('Progress')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

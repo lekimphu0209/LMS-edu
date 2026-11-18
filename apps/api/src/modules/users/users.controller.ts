@@ -5,6 +5,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
+/**
+ * UsersController — route /users công khai chung: chỉ còn GET /users/students
+ * (danh sách học sinh để chọn khi ghi danh). CRUD người dùng đầy đủ nằm
+ * trong AdminUsersController (/admin/users).
+ */
 @ApiTags('Users')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

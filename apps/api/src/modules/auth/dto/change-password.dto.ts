@@ -1,3 +1,4 @@
+/** DTO đổi mật khẩu; currentPassword bỏ qua được khi tài khoản dùng mật khẩu tạm. */
 import { IsString, MinLength, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 

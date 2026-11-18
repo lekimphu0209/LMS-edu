@@ -1,3 +1,4 @@
+/** DTO đăng ký tài khoản: role mặc định STUDENT nếu không truyền. */
 import { IsEmail, IsString, MinLength, IsEnum, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 

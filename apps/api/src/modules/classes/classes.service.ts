@@ -1,3 +1,7 @@
+/**
+ * ClassesService — quản lý lớp học, ghi danh học sinh và các số liệu
+ * thống kê theo lớp (bài tập đang mở, bài chờ chấm, điểm TB, tiến độ).
+ */
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { PrismaClassRepository } from './repositories/prisma-class.repository';
@@ -11,6 +15,10 @@ export class ClassesService {
     this.repository = new PrismaClassRepository(prisma);
   }
 
+  /**
+   * Danh sách lớp có lọc + phân trang. Mỗi lớp kèm `stats` gộp từ 3 count
+   * song song: bài tập đang mở, bài nộp chờ chấm và số học sinh đang học.
+   */
   async findAll(
     teacherId?: string,
     status?: string,
@@ -51,6 +59,7 @@ export class ClassesService {
     return { data, total, page, limit };
   }
 
+  /** Lớp theo id (kèm giáo viên và học sinh theo repository); 404 nếu không có. */
   async findById(id: string) {
     const cls = await this.repository.findById(id);
     if (!cls) throw new NotFoundException('Class not found');
@@ -61,6 +70,7 @@ export class ClassesService {
     return this.findById(id);
   }
 
+  /** Tạo lớp mới rồi ghi danh hàng loạt học sinh được chọn (bỏ trùng). */
   async create(dto: CreateClassDto, createdBy: string) {
     const cls = await this.repository.create({
       name: dto.name,
@@ -81,6 +91,7 @@ export class ClassesService {
     return cls;
   }
 
+  /** Sửa tên/môn/giáo viên phụ trách. */
   async update(id: string, dto: UpdateClassDto) {
     const cls = await this.repository.findById(id);
     if (!cls) throw new NotFoundException('Class not found');
@@ -91,18 +102,24 @@ export class ClassesService {
     });
   }
 
+  /** Đóng lớp (INACTIVE) — giữ nguyên dữ liệu. */
   async deactivate(id: string) {
     const cls = await this.repository.findById(id);
     if (!cls) throw new NotFoundException('Class not found');
     return this.repository.update(id, { status: 'INACTIVE' });
   }
 
+  /** Đổi trạng thái lớp (ACTIVE/INACTIVE). */
   async setStatus(id: string, status: 'ACTIVE' | 'INACTIVE') {
     const cls = await this.repository.findById(id);
     if (!cls) throw new NotFoundException('Class not found');
     return this.repository.update(id, { status });
   }
 
+  /**
+   * Thêm học sinh vào lớp. Bản ghi từng bị REMOVED được kích hoạt lại
+   * (unique pair đã tồn tại nên chỉ createMany+skipDuplicates không đủ).
+   */
   async enrollStudents(classId: string, dto: EnrollStudentsDto) {
     const cls = await this.repository.findById(classId);
     if (!cls) throw new NotFoundException('Class not found');
@@ -128,6 +145,7 @@ export class ClassesService {
     return { message: `Enrolled ${dto.studentIds.length} students` };
   }
 
+  /** Xóa mềm học sinh khỏi lớp (REMOVED) để giữ lịch sử ghi danh. */
   async removeStudent(classId: string, studentId: string) {
     const enrollment = await this.prisma.classStudent.findFirst({
       where: { classId, studentId, status: 'ENROLLED' },
@@ -143,6 +161,10 @@ export class ClassesService {
     return { message: 'Student removed from class' };
   }
 
+  /**
+   * Bài tập đã giao cho lớp: kèm số bài nộp/tổng học sinh và trạng thái
+   * SCHEDULED/OPEN/CLOSED suy từ unlockDate/dueDate.
+   */
   async getAssignments(classId: string) {
     const [targets, totalStudents] = await Promise.all([
       this.prisma.assignmentTarget.findMany({
@@ -173,6 +195,7 @@ export class ClassesService {
     }));
   }
 
+  /** Thống kê lớp: sĩ số, số bài tập, bài chờ chấm, điểm TB và tiến độ TB của học sinh. */
   async getStats(classId: string) {
     const cls = await this.repository.findById(classId);
     if (!cls) throw new NotFoundException('Class not found');
@@ -222,6 +245,7 @@ export class ClassesService {
     };
   }
 
+  /** Roster học sinh đang học (ENROLLED) của lớp. */
   async getStudents(classId: string) {
     const cls = await this.repository.findById(classId);
     if (!cls) throw new NotFoundException('Class not found');

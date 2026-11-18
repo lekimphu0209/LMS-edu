@@ -1,3 +1,11 @@
+/**
+ * AuthService — đăng nhập/đăng ký, cấp và thu hồi JWT access/refresh token,
+ * đổi mật khẩu và lấy hồ sơ người dùng.
+ *
+ * Mật khẩu băm bằng argon2. Refresh token bị thu hồi được lưu dạng hash
+ * (SHA-256) trong bộ nhớ — đơn giản, đủ dùng cho chạy một instance;
+ * cần lưu DB nếu scale nhiều instance.
+ */
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -8,12 +16,14 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 
+/** Payload nhúng trong cả access và refresh token. */
 export interface JwtPayload {
   sub: string;
   email: string;
   role: string;
 }
 
+/** Băm refresh token trước khi so sánh — không lưu token thô trong bộ nhớ. */
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -28,6 +38,7 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
+  /** Xác thực email + mật khẩu; tài khoản INACTIVE bị coi như sai credentials. */
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
 
@@ -48,6 +59,7 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
+  /** Đăng ký tài khoản mới (mặc định role STUDENT), trả về cặp token đầu tiên. */
   async register(dto: RegisterDto, createdBy?: string) {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
@@ -68,6 +80,7 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
+  /** Cấp lại cặp token mới từ refresh token hợp lệ; token đã logout/hết hạn bị từ chối. */
   async refresh(refreshToken: string) {
     try {
       if (this.revokedRefreshTokens.has(hashToken(refreshToken))) {
@@ -89,6 +102,7 @@ export class AuthService {
     }
   }
 
+  /** Đăng xuất: thêm hash refresh token vào danh sách thu hồi. */
   async logout(refreshToken: string) {
     try {
       this.jwtService.verify(refreshToken, {
@@ -102,6 +116,10 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+  /**
+   * Đổi mật khẩu. Tài khoản bị cờ mustChangePassword (mật khẩu tạm do admin
+   * cấp) được đổi luôn không cần mật khẩu hiện tại.
+   */
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -127,6 +145,7 @@ export class AuthService {
     return { message: 'Password changed successfully' };
   }
 
+  /** Hồ sơ cơ bản của người dùng đang đăng nhập (không trả passwordHash). */
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -148,6 +167,7 @@ export class AuthService {
     return user;
   }
 
+  /** Ký access (mặc định 15m) + refresh token (mặc định 7d) từ env config. */
   private generateTokens(user: { id: string; email: string; role: string; fullName: string }) {
     const payload: JwtPayload = { sub: user.id, email: user.email, role: user.role };
 

@@ -1,3 +1,8 @@
+/**
+ * QuestionBankService — CRUD ngân hàng câu hỏi của giáo viên.
+ * Câu hỏi SINGLE/MULTI có bảng options con sắp theo orderIndex;
+ * FILL_BLANK không có option.
+ */
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateQuestionDto, UpdateQuestionDto } from './dto/question.dto';
@@ -6,6 +11,10 @@ import { CreateQuestionDto, UpdateQuestionDto } from './dto/question.dto';
 export class QuestionBankService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Danh sách câu hỏi kèm options, lọc theo giáo viên/môn/loại/độ khó/từ khóa
+   * (tìm trong questionText, không phân biệt hoa thường) + phân trang.
+   */
   async findAll(
     teacherId?: string,
     subject?: string,
@@ -36,6 +45,7 @@ export class QuestionBankService {
     return { data: questions, total, page, limit };
   }
 
+  /** Câu hỏi theo id kèm options; 404 nếu không tồn tại. */
   async findById(id: string) {
     const question = await this.prisma.question.findUnique({
       where: { id },
@@ -45,6 +55,7 @@ export class QuestionBankService {
     return question;
   }
 
+  /** Tạo câu hỏi mới, nested-create luôn các options (nếu gửi kèm). */
   async create(dto: CreateQuestionDto, teacherId: string) {
     const { options, ...questionData } = dto;
 
@@ -70,6 +81,10 @@ export class QuestionBankService {
     });
   }
 
+  /**
+   * Cập nhật các trường được gửi lên. Hiện chưa thay danh sách options —
+   * nếu cần sửa đáp án phải mở rộng thêm.
+   */
   async update(id: string, dto: UpdateQuestionDto) {
     const question = await this.prisma.question.findUnique({ where: { id } });
     if (!question) throw new NotFoundException('Question not found');
@@ -91,6 +106,7 @@ export class QuestionBankService {
     });
   }
 
+  /** Xóa câu hỏi; P2003 → từ chối khi câu hỏi đã nằm trong bài nộp/bài tập. */
   async delete(id: string) {
     const question = await this.prisma.question.findUnique({ where: { id } });
     if (!question) throw new NotFoundException('Question not found');

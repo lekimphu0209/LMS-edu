@@ -8,6 +8,7 @@ import { LogoutDto } from './dto/logout.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/** AuthController — đăng nhập/đăng ký, refresh & thu hồi token, hồ sơ và đổi mật khẩu. */
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {

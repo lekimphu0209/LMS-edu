@@ -1,3 +1,4 @@
+/** DTO lớp học: tạo/sửa lớp và ghi danh hàng loạt học sinh. */
 import { IsString, IsOptional, IsArray } from 'class-validator';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 

@@ -6,6 +6,7 @@ import { AdminUsersController } from './admin-users.controller';
 import { AdminClassesController } from './admin-classes.controller';
 import { AdminStatisticsController } from './admin-statistics.controller';
 
+/** AdminModule — gom các route chỉ dành cho ADMIN (/admin/users, /admin/classes, /admin/stats). */
 @Module({
   imports: [UsersModule, ClassesModule, StatisticsModule],
   controllers: [AdminUsersController, AdminClassesController, AdminStatisticsController],

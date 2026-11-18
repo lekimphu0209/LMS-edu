@@ -6,6 +6,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/** FeedbackController — nhận xét bài nộp và hộp thư góp ý học sinh↔giáo viên. */
 @ApiTags('Feedback')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

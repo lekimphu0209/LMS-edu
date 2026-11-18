@@ -16,6 +16,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { StorageModule } from './common/storage/storage.module';
 import { EmailModule } from './common/email/email.module';
 
+/** AppModule — module gốc: gom toàn bộ module nghiệp vụ + hạ tầng (Prisma, storage, email). */
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),

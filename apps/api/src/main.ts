@@ -5,6 +5,11 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
+/**
+ * Entry API NestJS: helmet, CORS cho web app, prefix /api/v1, ValidationPipe
+ * whitelist + forbidNonWhitelisted, exception filter/interceptor global,
+ * Swagger tại /docs và listen PORT.
+ */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
