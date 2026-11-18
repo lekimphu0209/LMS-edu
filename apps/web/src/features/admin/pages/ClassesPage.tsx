@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, User, Users, GraduationCap, Plus, Eye, X, UserX, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, User, Users, GraduationCap, Plus, Eye, X, UserX, UserCheck, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
@@ -72,6 +72,8 @@ export function ClassesPage() {
   const [studentIds, setStudentIds] = useState<string[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
   const [teacherSearch, setTeacherSearch] = useState('');
+  const [teacherOpen, setTeacherOpen] = useState(false);
+  const [studentsOpen, setStudentsOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [enrollIds, setEnrollIds] = useState<string[]>([]);
   const [enrollSearch, setEnrollSearch] = useState('');
@@ -226,6 +228,8 @@ export function ClassesPage() {
     setStudentIds([]);
     setStudentSearch('');
     setTeacherSearch('');
+    setTeacherOpen(false);
+    setStudentsOpen(false);
   };
 
   const enrolledIds = new Set(
@@ -253,6 +257,8 @@ export function ClassesPage() {
   const toggleStudent = (id: string) => {
     setStudentIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
+
+  const selectedTeacher = (teachers ?? []).find((t) => t.id === teacherId);
 
   const trimmedClassName = name.trim();
   const trimmedEditName = editName.trim();
@@ -287,12 +293,13 @@ export function ClassesPage() {
           title="Thêm lớp học mới"
           className="max-w-3xl"
         >
+              <div className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="text-sm font-medium">Tên lớp</label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: Toán 10A" />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="text-sm font-medium">Môn học</label>
                   <select
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -307,96 +314,124 @@ export function ClassesPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Chọn giáo viên
+                  Giáo viên phụ trách
                 </label>
-                <div className="rounded-md border">
-                  <div className="p-2 border-b bg-muted/50">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        className="pl-9"
-                        placeholder="Tìm giáo viên..."
-                        value={teacherSearch}
-                        onChange={(e) => setTeacherSearch(e.target.value)}
-                      />
+                <button
+                  type="button"
+                  onClick={() => setTeacherOpen((o) => !o)}
+                  className="flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm text-left"
+                >
+                  <span className={selectedTeacher ? 'truncate' : 'truncate text-muted-foreground'}>
+                    {selectedTeacher
+                      ? `${selectedTeacher.fullName} (${selectedTeacher.email})`
+                      : '— Chọn giáo viên —'}
+                  </span>
+                  <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${teacherOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {teacherOpen && (
+                  <div className="rounded-md border">
+                    <div className="p-2 border-b bg-muted/50">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          className="pl-9"
+                          placeholder="Tìm giáo viên..."
+                          value={teacherSearch}
+                          onChange={(e) => setTeacherSearch(e.target.value)}
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto">
+                      {filteredTeachers.map((t) => (
+                        <label
+                          key={t.id}
+                          className="flex cursor-pointer items-center gap-3 border-b p-3 last:border-b-0 hover:bg-muted/50"
+                        >
+                          <input
+                            type="radio"
+                            name="teacherId"
+                            value={t.id}
+                            checked={teacherId === t.id}
+                            onChange={() => { setTeacherId(t.id); setTeacherOpen(false); }}
+                            className="h-4 w-4"
+                          />
+                          <div className="space-y-0.5 min-w-0">
+                            <div className="text-sm font-medium leading-tight">{t.fullName}</div>
+                            <div className="text-xs text-muted-foreground leading-tight">{t.email}</div>
+                          </div>
+                        </label>
+                      ))}
+                      {filteredTeachers.length === 0 && (
+                        <div className="p-4 text-center text-sm text-muted-foreground">Không tìm thấy giáo viên</div>
+                      )}
                     </div>
                   </div>
-                  <div className="max-h-40 overflow-y-auto">
-                    {filteredTeachers.map((t) => (
-                      <label
-                        key={t.id}
-                        className="flex cursor-pointer items-center gap-3 border-b p-3 last:border-b-0 hover:bg-muted/50"
-                      >
-                        <input
-                          type="radio"
-                          name="teacherId"
-                          value={t.id}
-                          checked={teacherId === t.id}
-                          onChange={() => setTeacherId(t.id)}
-                          className="h-4 w-4"
-                        />
-                        <div>
-                          <div className="text-sm font-medium">{t.fullName}</div>
-                          <div className="text-xs text-muted-foreground">{t.email}</div>
-                        </div>
-                      </label>
-                    ))}
-                    {filteredTeachers.length === 0 && (
-                      <div className="p-4 text-center text-sm text-muted-foreground">Không tìm thấy giáo viên</div>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Chọn học sinh
+                  Học sinh
                   {studentIds.length > 0 && (
                     <Badge variant="secondary">Đã chọn {studentIds.length}</Badge>
                   )}
                 </label>
-                <div className="rounded-md border">
-                  <div className="p-2 border-b bg-muted/50">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        className="pl-9"
-                        placeholder="Tìm học sinh..."
-                        value={studentSearch}
-                        onChange={(e) => setStudentSearch(e.target.value)}
-                      />
+                <button
+                  type="button"
+                  onClick={() => setStudentsOpen((o) => !o)}
+                  className="flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm text-left"
+                >
+                  <span className={studentIds.length ? 'truncate' : 'truncate text-muted-foreground'}>
+                    {studentIds.length ? `Đã chọn ${studentIds.length} học sinh` : '— Chọn học sinh (không bắt buộc) —'}
+                  </span>
+                  <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${studentsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {studentsOpen && (
+                  <div className="rounded-md border">
+                    <div className="p-2 border-b bg-muted/50">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          className="pl-9"
+                          placeholder="Tìm học sinh..."
+                          value={studentSearch}
+                          onChange={(e) => setStudentSearch(e.target.value)}
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto">
+                      {filteredStudents.map((s) => (
+                        <label
+                          key={s.id}
+                          className="flex cursor-pointer items-center gap-3 border-b p-3 last:border-b-0 hover:bg-muted/50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={studentIds.includes(s.id)}
+                            onChange={() => toggleStudent(s.id)}
+                            className="h-4 w-4"
+                          />
+                          <div className="space-y-0.5 min-w-0">
+                            <div className="text-sm font-medium leading-tight">{s.fullName}</div>
+                            <div className="text-xs text-muted-foreground leading-tight">{s.email}</div>
+                          </div>
+                        </label>
+                      ))}
+                      {filteredStudents.length === 0 && (
+                        <div className="p-4 text-center text-sm text-muted-foreground">Không tìm thấy học sinh</div>
+                      )}
                     </div>
                   </div>
-                  <div className="max-h-60 overflow-y-auto">
-                    {filteredStudents.map((s) => (
-                      <label
-                        key={s.id}
-                        className="flex cursor-pointer items-center gap-3 border-b p-3 last:border-b-0 hover:bg-muted/50"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={studentIds.includes(s.id)}
-                          onChange={() => toggleStudent(s.id)}
-                          className="h-4 w-4"
-                        />
-                        <div>
-                          <div className="text-sm font-medium">{s.fullName}</div>
-                          <div className="text-xs text-muted-foreground">{s.email}</div>
-                        </div>
-                      </label>
-                    ))}
-                    {filteredStudents.length === 0 && (
-                      <div className="p-4 text-center text-sm text-muted-foreground">Không tìm thấy học sinh</div>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-1">
                 <Button variant="outline" onClick={resetForm}>
                   Hủy
                 </Button>
@@ -406,6 +441,7 @@ export function ClassesPage() {
                 >
                   {createMutation.isPending ? 'Đang tạo...' : 'Tạo lớp'}
                 </Button>
+              </div>
               </div>
         </Dialog>
 
