@@ -1,3 +1,8 @@
+/**
+ * AuthContext — phiên đăng nhập phía client.
+ * Token (access/refresh) và user lưu trong localStorage để sống qua reload;
+ * `useAuth()` cho phép mọi component đọc user + login/logout.
+ */
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
 interface AuthUser {

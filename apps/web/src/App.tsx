@@ -1,3 +1,7 @@
+/**
+ * App — gốc ứng dụng: QueryClientProvider (React Query) + AuthProvider +
+ * toàn bộ route map chia theo khu vực admin/teacher/student, bọc ProtectedRoute.
+ */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/auth-context';

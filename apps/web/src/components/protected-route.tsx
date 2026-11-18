@@ -7,6 +7,10 @@ interface ProtectedRouteProps {
   roles?: ('ADMIN' | 'TEACHER' | 'STUDENT')[];
 }
 
+/**
+ * Bọc route cần đăng nhập: chưa login → /login; có `roles` thì còn kiểm
+ * user.role, sai quyền → /dashboard.
+ */
 export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const { user, isAuthenticated } = useAuth();
 

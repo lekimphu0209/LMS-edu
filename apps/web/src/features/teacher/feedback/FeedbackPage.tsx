@@ -1,3 +1,4 @@
+/** Trang giáo viên: hộp thư góp ý của học sinh — danh sách + ô trả lời từng góp ý. */
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { getTeacherFeedbacks, replyFeedback, CATEGORY_LABELS, CATEGORY_COLORS, type Feedback } from '@/data/feedback'

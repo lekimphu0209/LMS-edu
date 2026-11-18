@@ -1,3 +1,4 @@
+/** Modal dùng createPortal: khóa scroll body khi mở, bù scrollbar, đóng khi bấm nền/nút X. */
 import { ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';

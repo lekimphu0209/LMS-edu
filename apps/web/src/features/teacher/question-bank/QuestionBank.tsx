@@ -1,3 +1,7 @@
+/**
+ * Ngân hàng câu hỏi (view-only): lọc loại/độ khó + tìm kiếm debounce 300ms,
+ * tạo/sửa/xóa qua modal — dữ liệu do QuestionBankPage (wrapper) quản lý.
+ */
 import { useState, useMemo, useEffect } from 'react'
 import { BankQuestion, QType, Difficulty } from '@/data/questionBank'
 import { QuestionCard } from '../shared/components/question'

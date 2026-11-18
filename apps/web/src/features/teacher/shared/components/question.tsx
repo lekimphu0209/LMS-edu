@@ -1,9 +1,11 @@
+/** UI dùng chung cho câu hỏi: badge độ khó/loại và QuestionCard (chọn, xóa, mở rộng xem đáp án). */
 import { useState, useMemo } from 'react'
 import {
   BankQuestion, QType, Difficulty, TYPE_LABELS, DIFF_LABELS, DIFF_COLORS,
   HIERARCHY,
 } from '@/data/questionBank'
 
+/** Nhãn màu độ khó: easy xanh, medium vàng, hard đỏ. */
 export function DiffBadge({ d }: { d: Difficulty }) {
   return (
     <span style={{

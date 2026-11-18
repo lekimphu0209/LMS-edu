@@ -1,3 +1,4 @@
+/** Vùng hiển thị toast (góc dưới phải): success xanh / error đỏ, đóng tay bằng nút X. */
 import { CheckCircle2, XCircle, X } from 'lucide-react';
 import { toast, useToasts } from '@/lib/toast';
 import { cn } from '@/lib/utils';
