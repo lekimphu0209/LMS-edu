@@ -1,44 +1,45 @@
 import { describe, it, expect } from 'vitest';
 import {
-  seedAssignments,
-  classRosters,
   bumpVersion,
   STATUS_META,
   fmtDate,
   scoreColor,
   type Assignment,
 } from '../../src/data/assignments';
-import { buildItemsFromQuestions, resolveClassOptions } from '../../src/features/teacher/assignments/CreateAssignmentPage';
+import { buildItemsFromQuestions, resolveClassOptions, type ClassOption } from '../../src/features/teacher/assignments/CreateAssignmentPage';
 
 // ── resolveClassOptions: lớp prefill từ trang chi tiết lớp ─────────
 
+const API_CLASSES: ClassOption[] = [
+  { id: 'c1', name: 'Toán 10A' },
+  { id: 'c2', name: 'Toán 10B' },
+];
+
 describe('resolveClassOptions', () => {
-  it('trả danh sách mẫu khi không có lớp nào được chọn', () => {
-    const opts = resolveClassOptions('');
-    expect(opts).toContain('Toán 10A');
-    expect(opts[0]).toBe('Toán 10A');
+  it('trả danh sách lớp từ API khi không có lớp nào được chọn', () => {
+    expect(resolveClassOptions(API_CLASSES, '')).toEqual(API_CLASSES);
   });
 
-  it('giữ nguyên danh sách khi lớp đã nằm trong danh sách mẫu', () => {
-    const opts = resolveClassOptions('Toán 10B');
-    expect(opts.filter(c => c === 'Toán 10B')).toHaveLength(1);
-    expect(opts[0]).toBe('Toán 10A');
+  it('giữ nguyên danh sách khi lớp đã chọn nằm trong danh sách API', () => {
+    const opts = resolveClassOptions(API_CLASSES, 'c2', 'Toán 10B');
+    expect(opts.filter(c => c.id === 'c2')).toHaveLength(1);
+    expect(opts[0].id).toBe('c1');
   });
 
-  it('đưa lớp từ API (ngoài danh sách mẫu) lên đầu để dropdown chọn được', () => {
-    const opts = resolveClassOptions('10A - Toan Hoc');
-    expect(opts[0]).toBe('10A - Toan Hoc');
-    expect(opts).toContain('Toán 10A');
+  it('đưa lớp prefill (ngoài danh sách API) lên đầu để dropdown chọn được', () => {
+    const opts = resolveClassOptions(API_CLASSES, 'c9', '10A - Toan Hoc');
+    expect(opts[0]).toEqual({ id: 'c9', name: '10A - Toan Hoc' });
+    expect(opts).toContainEqual({ id: 'c1', name: 'Toán 10A' });
   });
 });
 
 // ── bumpVersion: cờ đánh dấu bản sửa đổi của bài đã giao ──────────
 
 describe('bumpVersion', () => {
-  const base = seedAssignments.find(a => a.version === 1)!;
+  const base = { version: 1, editedAt: null } as Assignment;
 
   it('tăng version lên 1', () => {
-    expect(bumpVersion(base).version).toBe(base.version + 1);
+    expect(bumpVersion(base).version).toBe(2);
   });
 
   it('ghi editedAt theo định dạng YYYY-MM-DD HH:MM', () => {
@@ -46,44 +47,12 @@ describe('bumpVersion', () => {
   });
 });
 
-// ── Seed integrity ────────────────────────────────────────────────
+// ── Trạng thái bài tập ────────────────────────────────────────────
 
-describe('seedAssignments', () => {
-  it('mọi bài tập đều có version >= 1', () => {
-    expect(seedAssignments.every(a => a.version >= 1)).toBe(true);
-  });
-
-  it('bài version 1 không có editedAt; bài đã sửa (version > 1) có editedAt', () => {
-    for (const a of seedAssignments) {
-      if (a.version === 1) expect(a.editedAt).toBeNull();
-      else expect(a.editedAt).toBeTruthy();
-    }
-  });
-
-  it('mọi status đều hợp lệ trong STATUS_META', () => {
-    for (const a of seedAssignments) {
-      expect(STATUS_META[a.status as Assignment['status']]).toBeDefined();
-    }
-  });
-
-  it('lớp của bài tập đều có roster học sinh (khi lớp không rỗng)', () => {
-    const missing = seedAssignments
-      .filter(a => a.class)
-      .map(a => a.class)
-      .filter(c => !classRosters[c]);
-    expect(missing).toEqual([]);
-  });
-});
-
-// ── Roster + điểm trung bình ──────────────────────────────────────
-
-describe('classRosters', () => {
-  it('mọi học sinh có avgScore trong khoảng 0–10', () => {
-    for (const roster of Object.values(classRosters)) {
-      for (const s of roster) {
-        expect(s.avgScore).toBeGreaterThanOrEqual(0);
-        expect(s.avgScore).toBeLessThanOrEqual(10);
-      }
+describe('STATUS_META', () => {
+  it('đủ nhãn cho 3 trạng thái', () => {
+    for (const s of ['DRAFT', 'SAVED', 'ASSIGNED'] as const) {
+      expect(STATUS_META[s].label).toBeTruthy();
     }
   });
 });

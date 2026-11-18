@@ -1,8 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Outline } from '../shared/data/outlines'
 import { BankQuestion } from '@/data/questionBank'
-import { classRosters, seedAssignments, scoreColor, type Assignment } from '@/data/assignments'
+import { createAssignment, assignTarget } from '@/data/assignments'
+import { getTeacherClasses, getClassStudents, type ClassRosterStudent } from '@/data/classes'
 import { TypeBadge, DiffBadge, QuestionPicker } from '../shared/components/question'
 
 interface Props {
@@ -20,11 +22,10 @@ interface AsgOutline  { outlineId: string; sections: AsgSection[] }
 export interface AssignmentPrefill {
   sourceTitle?: string
   title?: string
-  desc?: string
-  class?: string
+  classId?: string
+  class?: string        // tên lớp (hiển thị, dùng khi id không có trong danh sách)
   dueDate?: string
   dueTime?: string
-  durationMin?: number | null
   questionIds?: string[]
 }
 
@@ -49,13 +50,20 @@ export function buildItemsFromQuestions(questionIds: string[], outlines: Outline
   return items
 }
 
-const CLASSES = ['Toán 10A', 'Toán 10B', 'Toán 11B', 'Toán 12A', 'Toán 12C', 'Lý 12C', 'Hóa 10D']
+export interface ClassOption { id: string; name: string }
 
-/** Danh sách option lớp: lớp từ prefill (trang chi tiết lớp) nằm ngoài danh sách mẫu vẫn được giữ và đưa lên đầu. */
-export function resolveClassOptions(targetClass: string): string[] {
-  return targetClass && !CLASSES.includes(targetClass) ? [targetClass, ...CLASSES] : CLASSES
+/** Danh sách option lớp: lớp từ prefill (trang chi tiết lớp) không có trong danh sách API vẫn được giữ và đưa lên đầu. */
+export function resolveClassOptions(
+  classes: ClassOption[],
+  targetClassId: string,
+  targetClassName?: string,
+): ClassOption[] {
+  const opts = classes.map(c => ({ id: c.id, name: c.name }))
+  if (targetClassId && targetClassName && !opts.some(o => o.id === targetClassId)) {
+    return [{ id: targetClassId, name: targetClassName }, ...opts]
+  }
+  return opts
 }
-const DURATION_PRESETS = [15, 30, 45, 60, 90, 120]
 
 function today() { return new Date().toISOString().slice(0, 10) }
 
@@ -130,22 +138,41 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
   const navigate = useNavigate()
   /** Điền sẵn khi đến từ nút "Tạo bản sao" ở trang chi tiết. */
   const prefill = (useLocation().state as { prefill?: AssignmentPrefill } | null)?.prefill
+  const queryClient = useQueryClient()
   const [title, setTitle]           = useState(prefill?.title ?? '')
-  const [targetClass, setTargetClass] = useState(prefill?.class ?? '')
+  const [classId, setClassId]       = useState(prefill?.classId ?? '')
   const [dueDate, setDueDate]       = useState(prefill?.dueDate ?? '')
   const [dueTime, setDueTime]       = useState(prefill?.dueTime ?? '23:59')
-  const [desc, setDesc]             = useState(prefill?.desc ?? '')
-  const [durationOn, setDurationOn]   = useState(prefill?.durationMin != null)
-  const [durationMin, setDurationMin] = useState(prefill?.durationMin ?? 45)
   // Giao cho: mặc định cả lớp; chuyển sang chọn từng học sinh bằng checkbox + search
   const [targetAll, setTargetAll]   = useState(true)
-  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [studentSearch, setStudentSearch] = useState('')
   const [submitted, setSubmitted]   = useState<'assigned' | 'saved' | 'draft' | null>(null)
+  const [saving, setSaving]         = useState(false)
 
-  // Builder state
-  const [items, setItems] = useState<AsgOutline[]>(() =>
-    prefill?.questionIds?.length ? buildItemsFromQuestions(prefill.questionIds, outlines) : [])
+  // Lớp của giáo viên + roster học sinh của lớp đang chọn (API thật)
+  const { data: teacherClassList = [] } = useQuery({
+    queryKey: ['teacher-classes'],
+    queryFn: getTeacherClasses,
+    retry: 1,
+  })
+  const classOptions = resolveClassOptions(teacherClassList, classId, prefill?.class)
+  const selectedClassName = classOptions.find(o => o.id === classId)?.name ?? ''
+  const { data: roster = [] } = useQuery<ClassRosterStudent[]>({
+    queryKey: ['class-students', classId],
+    queryFn: () => getClassStudents(classId),
+    enabled: !!classId,
+  })
+
+  // Builder state — dựng lại từ prefill.questionIds khi outlines đã tải xong
+  const [items, setItems] = useState<AsgOutline[]>([])
+  const prefillItemsApplied = useRef(false)
+  useEffect(() => {
+    if (!prefillItemsApplied.current && prefill?.questionIds?.length && outlines.length) {
+      setItems(buildItemsFromQuestions(prefill.questionIds, outlines))
+      prefillItemsApplied.current = true
+    }
+  }, [prefill?.questionIds, outlines])
   const [picker, setPicker] = useState<{ outlineIdx: number; sectionIdx: number; exerciseIdx: number } | null>(null)
 
   // ── Outline ops ──
@@ -208,59 +235,59 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
 
   // ── Derived ──
 
-  const totalQuestions = useMemo(() =>
-    [...new Set(items.flatMap(o => o.sections.flatMap(s => s.exercises.flatMap(e => e.questionIds))))].length,
+  const allQuestionIds = useMemo(
+    () => [...new Set(items.flatMap(o => o.sections.flatMap(s => s.exercises.flatMap(e => e.questionIds))))],
     [items])
+  const totalQuestions = allQuestionIds.length
 
-  const roster = classRosters[targetClass] ?? []
-  const rosterAvg = roster.length ? roster.reduce((a, s) => a + s.avgScore, 0) / roster.length : 0
-  // Lớp từ prefill (trang chi tiết lớp) có thể chưa nằm trong danh sách mẫu
-  const classOptions = resolveClassOptions(targetClass)
-  const canSubmit = Boolean(title.trim() && targetClass && dueDate && dueTime && totalQuestions > 0
-    && (!durationOn || durationMin > 0)
+  const canSubmit = Boolean(title.trim() && classId && dueDate && dueTime && totalQuestions > 0
     && (targetAll || selectedIds.length > 0))
 
   const resetForm = () => {
-    setSubmitted(null); setTitle(''); setTargetClass(''); setDueDate(''); setDueTime('23:59'); setDesc('')
-    setDurationOn(false); setDurationMin(45); setItems([])
-    setTargetAll(true); setSelectedIds([]); setStudentSearch('')
+    setSubmitted(null); setTitle(''); setClassId(''); setDueDate(''); setDueTime('23:59')
+    setItems([]); setTargetAll(true); setSelectedIds([]); setStudentSearch('')
   }
 
   const checks = [
     { ok: Boolean(title.trim()), t: 'Đặt tên bài tập' },
-    { ok: Boolean(targetClass), t: 'Chọn lớp học' },
+    { ok: Boolean(classId), t: 'Chọn lớp học' },
     { ok: Boolean(dueDate && dueTime), t: 'Chọn hạn nộp' },
     { ok: totalQuestions > 0, t: 'Chọn ít nhất 1 câu hỏi' },
-    ...(durationOn ? [{ ok: durationMin > 0, t: 'Thời gian làm bài hợp lệ' }] : []),
     ...(!targetAll ? [{ ok: selectedIds.length > 0, t: 'Chọn ít nhất 1 học sinh' }] : []),
   ]
 
-  /** Tạo bản ghi bài tập mới vào kho chung rồi hiện màn hình kết quả. */
-  const finish = (mode: 'assigned' | 'saved' | 'draft') => {
-    const targets = targetAll ? roster : roster.filter(s => selectedIds.includes(s.id))
-    const newAsg: Assignment = {
-      id: Math.max(0, ...seedAssignments.map(a => a.id)) + 1,
-      title: title.trim() || 'Bài tập không tên',
-      class: targetClass,
-      status: mode === 'assigned' ? 'ASSIGNED' : mode === 'saved' ? 'SAVED' : 'DRAFT',
-      durationMin: durationOn ? durationMin : null,
-      dueDate, dueTime,
-      createdAt: new Date().toISOString().slice(0, 10),
-      totalQuestions,
-      desc,
-      questionIds: [...new Set(items.flatMap(o => o.sections.flatMap(s => s.exercises.flatMap(e => e.questionIds))))],
-      version: 1, editedAt: null,
-      students: mode === 'assigned'
-        ? targets.map(s => ({ id: s.id, name: s.name, completedAt: null, score: null, timeSpent: null, answers: [] }))
-        : [],
+  /** Tạo bài tập qua API; 'assigned' thì giao target (cả lớp hoặc từng học sinh) ngay sau đó. */
+  const finish = async (mode: 'assigned' | 'saved' | 'draft') => {
+    if (saving) return
+    setSaving(true)
+    try {
+      const created = await createAssignment({
+        title: title.trim() || 'Bài tập không tên',
+        type: mode === 'assigned' ? 'QUIZ' : mode === 'saved' ? 'SAVED' : 'DRAFT',
+        questionIds: allQuestionIds,
+      })
+      if (mode === 'assigned') {
+        const dueIso = new Date(`${dueDate}T${dueTime}:00`).toISOString()
+        if (targetAll) {
+          await assignTarget(created.id, { classId, dueDate: dueIso })
+        } else {
+          for (const sid of selectedIds) {
+            await assignTarget(created.id, { studentId: sid, dueDate: dueIso })
+          }
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['teacher-assignments'] })
+      setSubmitted(mode)
+    } catch (e: any) {
+      window.alert(e?.response?.data?.message ?? 'Không tạo được bài tập. Vui lòng thử lại.')
+    } finally {
+      setSaving(false)
     }
-    seedAssignments.push(newAsg)
-    setSubmitted(mode)
   }
 
   if (submitted) {
     const msg = {
-      assigned: { h: 'Giao bài thành công!', p: `Bài tập đã được giao cho ${targetAll ? `toàn bộ ${roster.length} học sinh` : `${selectedIds.length} học sinh`} lớp ${targetClass} (${totalQuestions} câu hỏi).` },
+      assigned: { h: 'Giao bài thành công!', p: `Bài tập đã được giao cho ${targetAll ? `toàn bộ ${roster.length} học sinh` : `${selectedIds.length} học sinh`} lớp ${selectedClassName} (${totalQuestions} câu hỏi).` },
       saved:    { h: 'Đã lưu bài tập!',       p: 'Bài tập đủ điều kiện giao nhưng chưa được giao — xem trong tab "Đã lưu" ở danh sách bài tập.' },
       draft:    { h: 'Đã lưu nháp!',          p: 'Bài tập còn thiếu thông tin — xem trong tab "Nháp" ở danh sách bài tập để hoàn thiện sau.' },
     }[submitted]
@@ -272,7 +299,7 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
         <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: 22, color: '#111827', marginBottom: 10 }}>{msg.h}</h2>
         <p style={{ color: '#6B7280', marginBottom: 8, maxWidth: 520, marginLeft: 'auto', marginRight: 'auto' }}>
           <strong>{title}</strong> — {msg.p}<br />
-          {dueDate && <>Hạn nộp: {dueDate} lúc {dueTime} · </>}Thời gian làm bài: <strong>{durationOn ? `${durationMin} phút` : 'không giới hạn'}</strong>
+          {dueDate && <>Hạn nộp: {dueDate} lúc {dueTime}</>}
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
           <button className="btn-primary" onClick={resetForm}>Tạo bài tập mới</button>
@@ -308,13 +335,13 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
           style={{ padding: '8px 16px', borderRadius: 9, border: '1.5px solid #E5E7EB', background: 'white', fontSize: 13, fontWeight: 600, color: '#6B7280', cursor: 'pointer', flexShrink: 0 }}>
           Hủy
         </button>
-        <button onClick={() => finish(canSubmit ? 'saved' : 'draft')} disabled={!title.trim()}
-          style={{ padding: '8px 16px', borderRadius: 9, border: '1.5px solid #2563EB', background: 'white', fontSize: 13, fontWeight: 700, color: '#2563EB', cursor: title.trim() ? 'pointer' : 'not-allowed', opacity: title.trim() ? 1 : 0.45, flexShrink: 0 }}>
-          {canSubmit ? 'Lưu' : 'Lưu nháp'}
+        <button onClick={() => finish(canSubmit ? 'saved' : 'draft')} disabled={!title.trim() || saving}
+          style={{ padding: '8px 16px', borderRadius: 9, border: '1.5px solid #2563EB', background: 'white', fontSize: 13, fontWeight: 700, color: '#2563EB', cursor: title.trim() ? 'pointer' : 'not-allowed', opacity: title.trim() && !saving ? 1 : 0.45, flexShrink: 0 }}>
+          {saving ? 'Đang lưu…' : canSubmit ? 'Lưu' : 'Lưu nháp'}
         </button>
-        <button className="btn-primary" onClick={() => finish('assigned')} disabled={!canSubmit}
-          style={{ padding: '8px 20px', fontSize: 13, fontWeight: 700, opacity: canSubmit ? 1 : 0.45, flexShrink: 0 }}>
-          Giao bài
+        <button className="btn-primary" onClick={() => finish('assigned')} disabled={!canSubmit || saving}
+          style={{ padding: '8px 20px', fontSize: 13, fontWeight: 700, opacity: canSubmit && !saving ? 1 : 0.45, flexShrink: 0 }}>
+          {saving ? 'Đang xử lý…' : 'Giao bài'}
         </button>
       </div>
 
@@ -486,9 +513,9 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
 
             <div>
               <label style={lbl}>Lớp học <span style={{ color: '#EF4444' }}>*</span></label>
-              <select className="input-field" value={targetClass} onChange={e => setTargetClass(e.target.value)}>
+              <select className="input-field" value={classId} onChange={e => { setClassId(e.target.value); setSelectedIds([]) }}>
                 <option value="">-- Chọn lớp --</option>
-                {classOptions.map(c => <option key={c}>{c}</option>)}
+                {classOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
 
@@ -523,13 +550,13 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
 
               {targetAll ? (
                 <div style={{ marginTop: 8, fontSize: 11.5, color: '#9CA3AF' }}>
-                  {targetClass
-                    ? <>Sẽ giao cho toàn bộ <strong style={{ color: '#2563EB' }}>{roster.length} học sinh</strong> lớp {targetClass} · ĐTB lớp <strong style={{ color: scoreColor(rosterAvg) }}>{rosterAvg.toFixed(1)}</strong>.</>
+                  {classId
+                    ? <>Sẽ giao cho toàn bộ <strong style={{ color: '#2563EB' }}>{roster.length} học sinh</strong> lớp {selectedClassName}.</>
                     : 'Sẽ giao cho toàn bộ học sinh của lớp đã chọn.'}
                 </div>
               ) : (
                 <div style={{ marginTop: 9, border: '1px solid #E5E7EB', borderRadius: 10, overflow: 'hidden' }}>
-                  {targetClass ? (
+                  {classId ? (
                     <>
                       {/* Tìm theo tên / email */}
                       <div style={{ position: 'relative', borderBottom: '1px solid #F3F4F6' }}>
@@ -561,9 +588,6 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
                                   <div style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>{s.name}</div>
                                   <div style={{ fontSize: 10.5, color: '#9CA3AF' }}>{s.email}</div>
                                 </span>
-                                <span title="Điểm trung bình" style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#F3F4F6', color: scoreColor(s.avgScore), flexShrink: 0 }}>
-                                  TB {s.avgScore.toFixed(1)}
-                                </span>
                               </label>
                             )
                           })}
@@ -589,52 +613,6 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
               )}
             </div>
 
-            {/* Thời gian làm bài */}
-            <div>
-              <label style={lbl}>Thời gian làm bài</label>
-              <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: 8, padding: 3, gap: 3 }}>
-                {[{ on: false, t: 'Không giới hạn' }, { on: true, t: 'Đặt thời gian' }].map(o => (
-                  <button key={String(o.on)} type="button" onClick={() => setDurationOn(o.on)}
-                    style={{ flex: 1, padding: '5px 0', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11.5, fontWeight: 600, transition: 'all 0.15s',
-                      background: durationOn === o.on ? 'white' : 'transparent',
-                      color: durationOn === o.on ? '#2563EB' : '#6B7280',
-                      boxShadow: durationOn === o.on ? '0 1px 3px rgba(0,0,0,0.10)' : 'none' }}>
-                    {o.t}
-                  </button>
-                ))}
-              </div>
-              {durationOn ? (
-                <div style={{ marginTop: 9 }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {DURATION_PRESETS.map(m => (
-                      <button key={m} type="button" onClick={() => setDurationMin(m)}
-                        style={{ padding: '4px 11px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', transition: 'all 0.12s',
-                          border: durationMin === m ? '1.5px solid #2563EB' : '1.5px solid #E5E7EB',
-                          background: durationMin === m ? '#EFF6FF' : 'white',
-                          color: durationMin === m ? '#2563EB' : '#4B5563' }}>
-                        {m}′
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 9 }}>
-                    <ClockIcon size={13} color="#6B7280" />
-                    <input className="input-field" type="number" min={1} max={600} value={durationMin}
-                      onChange={e => setDurationMin(Math.max(0, parseInt(e.target.value) || 0))}
-                      style={{ width: 90, textAlign: 'center', padding: '6px 8px' }} />
-                    <span style={{ fontSize: 12, color: '#6B7280' }}>phút — học sinh thấy đồng hồ đếm ngược</span>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ marginTop: 8, fontSize: 11.5, color: '#9CA3AF' }}>
-                  Học sinh làm bài không bị giới hạn thời gian.
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label style={lbl}>Mô tả <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(tuỳ chọn)</span></label>
-              <input className="input-field" placeholder="Hướng dẫn cho học sinh..." value={desc} onChange={e => setDesc(e.target.value)} />
-            </div>
           </div>
         </div>
 
@@ -645,12 +623,6 @@ export default function CreateAssignment({ outlines, bankQuestions }: Props) {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Nội dung</span>
               <strong>{items.length} đề cương · {items.reduce((a, o) => a + o.sections.length, 0)} mục · {items.reduce((a, o) => a + o.sections.reduce((b, s) => b + s.exercises.length, 0), 0)} bài · {totalQuestions} câu</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Thời gian</span>
-              <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: durationOn ? '#2563EB' : '#9CA3AF' }}>
-                <ClockIcon size={12} />{durationOn ? `${durationMin} phút` : 'Không giới hạn'}
-              </strong>
             </div>
           </div>
 

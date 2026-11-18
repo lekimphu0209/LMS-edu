@@ -49,7 +49,7 @@ export default function TeacherClassDetail({ classData, onNavigate }: { classDat
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn-secondary">Tải báo cáo</button>
-          <button className="btn-primary" onClick={() => navigate('/assignments/new', { state: { prefill: { class: cls.name } } })}>+ Giao bài tập</button>
+          <button className="btn-primary" onClick={() => navigate('/assignments/new', { state: { prefill: { classId: cls.id, class: cls.name } } })}>+ Giao bài tập</button>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { api } from '@/lib/api'
+import { apiToBankQuestion, type BankQuestion } from './questionBank'
 
-// Shared assignment data — used by both teacher and student views
+// Shared assignment data — teacher view, backed by /assignments API
 
 export interface QuestionAnswer {
   qi: number
@@ -13,8 +14,9 @@ export interface QuestionAnswer {
 }
 
 export interface StudentSubmission {
-  id: number
+  id: string              // student id
   name: string
+  submissionId: string | null
   completedAt: string | null
   score: number | null
   timeSpent: string | null
@@ -31,91 +33,95 @@ export const STATUS_META: Record<AssignmentStatus, { label: string; color: strin
 }
 
 export interface Assignment {
-  id: number
+  id: string
   title: string
-  class: string
+  class: string           // tên lớp của target đầu tiên (hiển thị)
+  classId: string         // classId của target đầu tiên
+  targetId: string | null // target dùng để sửa hạn nộp
   status: AssignmentStatus
-  durationMin: number | null  // null = không giới hạn
+  durationMin: number | null  // chưa có trên API — luôn null
   dueDate: string   // YYYY-MM-DD
   dueTime: string   // HH:MM
   createdAt: string
   totalQuestions: number
   desc: string
-  questionIds: string[] // links to BankQuestion ids in data/questionBank
+  questionIds: string[]
+  questions: BankQuestion[] // nội dung câu hỏi đầy đủ (trang chi tiết)
   students: StudentSubmission[]
-  version: number          // 1 = bản gốc; tăng mỗi lần giáo viên sửa thông tin sau khi giao
-  editedAt: string | null  // thời điểm sửa gần nhất
-}
-
-// ── Danh sách học sinh theo lớp (dùng chọn giao cho từng HS) ──────
-
-export interface RosterStudent { id: number; name: string; email: string; avgScore: number }
-
-export const classRosters: Record<string, RosterStudent[]> = {
-  'Toán 10A': [
-    { id: 1,  name: 'Lê Hoàng Anh',    email: 'anh.lh@student.edu.vn',    avgScore: 8.4 },
-    { id: 2,  name: 'Trần Minh Bảo',   email: 'bao.tm@student.edu.vn',    avgScore: 7.1 },
-    { id: 3,  name: 'Nguyễn Thị Châu', email: 'chau.nt@student.edu.vn',   avgScore: 9.0 },
-    { id: 4,  name: 'Phạm Quốc Dũng',  email: 'dung.pq@student.edu.vn',   avgScore: 6.2 },
-    { id: 5,  name: 'Vũ Thị Hà',       email: 'ha.vt@student.edu.vn',     avgScore: 7.8 },
-    { id: 6,  name: 'Hoàng Văn Hùng',  email: 'hung.hv@student.edu.vn',   avgScore: 5.9 },
-    { id: 7,  name: 'Đỗ Thị Lan',      email: 'lan.dt@student.edu.vn',    avgScore: 9.3 },
-    { id: 8,  name: 'Bùi Minh Long',   email: 'long.bm@student.edu.vn',   avgScore: 6.8 },
-    { id: 9,  name: 'Lý Thị Mai',      email: 'mai.lt@student.edu.vn',    avgScore: 8.1 },
-    { id: 10, name: 'Tô Quang Nam',    email: 'nam.tq@student.edu.vn',    avgScore: 7.4 },
-  ],
-  'Toán 10B': [
-    { id: 1, name: 'Cao Thị An',     email: 'an.ct@student.edu.vn',    avgScore: 8.9 },
-    { id: 2, name: 'Đinh Văn Bình',  email: 'binh.dv@student.edu.vn',  avgScore: 6.5 },
-    { id: 3, name: 'Hà Thị Cúc',     email: 'cuc.ht@student.edu.vn',   avgScore: 7.7 },
-    { id: 4, name: 'Lê Đức Duy',     email: 'duy.ld@student.edu.vn',   avgScore: 8.2 },
-    { id: 5, name: 'Mai Thị Hoa',    email: 'hoa.mt@student.edu.vn',   avgScore: 6.0 },
-    { id: 6, name: 'Ngô Văn Khoa',   email: 'khoa.nv@student.edu.vn',  avgScore: 9.1 },
-  ],
-  'Toán 11B': [
-    { id: 1, name: 'An Thị Bảo',      email: 'bao.at@student.edu.vn',   avgScore: 8.0 },
-    { id: 2, name: 'Bùi Văn Cường',   email: 'cuong.bv@student.edu.vn', avgScore: 7.5 },
-    { id: 3, name: 'Châu Thị Dung',   email: 'dung.ct@student.edu.vn',  avgScore: 8.6 },
-    { id: 4, name: 'Đặng Minh Đức',   email: 'duc.dm@student.edu.vn',   avgScore: 6.4 },
-    { id: 5, name: 'Giang Thị Hương', email: 'huong.gt@student.edu.vn', avgScore: 8.8 },
-  ],
-  'Toán 12C': [
-    { id: 1, name: 'Phan Văn Đạt',   email: 'dat.pv@student.edu.vn',   avgScore: 7.9 },
-    { id: 2, name: 'Trịnh Thị Nga',  email: 'nga.tt@student.edu.vn',   avgScore: 8.3 },
-    { id: 3, name: 'Đoàn Văn Phúc',  email: 'phuc.dv@student.edu.vn',  avgScore: 6.7 },
-    { id: 4, name: 'Hồ Thị Quỳnh',   email: 'quynh.ht@student.edu.vn', avgScore: 9.2 },
-  ],
-  'Toán 12A': [
-    { id: 1, name: 'An Thị Bảo',      email: 'bao.at@student.edu.vn',   avgScore: 8.2 },
-    { id: 2, name: 'Bùi Văn Cường',   email: 'cuong.bv@student.edu.vn', avgScore: 7.6 },
-    { id: 3, name: 'Châu Thị Dung',   email: 'dung.ct@student.edu.vn',  avgScore: 9.0 },
-    { id: 4, name: 'Đặng Minh Đức',   email: 'duc.dm@student.edu.vn',   avgScore: 6.8 },
-    { id: 5, name: 'Giang Thị Hương', email: 'huong.gt@student.edu.vn', avgScore: 8.5 },
-  ],
-  'Lý 12C': [
-    { id: 1, name: 'Lê Hoàng Anh',   email: 'anh.lh@student.edu.vn',  avgScore: 7.6 },
-    { id: 2, name: 'Phan Văn Đạt',   email: 'dat.pv@student.edu.vn',  avgScore: 8.4 },
-    { id: 3, name: 'Trịnh Thị Nga',  email: 'nga.tt@student.edu.vn',  avgScore: 7.0 },
-  ],
-  'Hóa 10D': [
-    { id: 1, name: 'Lê Hoàng Anh',   email: 'anh.lh@student.edu.vn',  avgScore: 8.1 },
-    { id: 2, name: 'Đoàn Văn Phúc',  email: 'phuc.dv@student.edu.vn', avgScore: 6.9 },
-    { id: 3, name: 'Hồ Thị Quỳnh',   email: 'quynh.ht@student.edu.vn', avgScore: 8.7 },
-  ],
+  totalStudents: number  // số HS được giao (list không cần students đầy đủ)
+  doneCount: number      // số bài đã nộp
+  version: number        // cờ client đánh dấu bản đã sửa
+  editedAt: string | null
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
+
+export interface RosterStudent { id: string; name: string; email: string; avgScore?: number }
 
 export function isPast(date: string) { return new Date(date) < new Date() }
 export function fmtDate(iso: string) { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}` }
 export function scoreColor(s: number) { return s >= 8 ? '#22C55E' : s >= 6.5 ? '#F59E0B' : '#EF4444' }
 
-/** Flag đánh dấu bản sửa đổi: tăng version + ghi thời điểm sửa (dùng khi sửa bài đã giao). */
+/** Flag đánh dấu bản sửa đổi: tăng version + ghi thời điểm sửa (client-side). */
 export function bumpVersion(a: Assignment): Pick<Assignment, 'version' | 'editedAt'> {
   return { version: a.version + 1, editedAt: new Date().toISOString().slice(0, 16).replace('T', ' ') }
 }
 
-/** Lấy bài tập thật từ API theo assignmentId (chuỗi) → map sang Assignment cho trang chi tiết. */
+const DONE_STATUSES = ['SUBMITTED', 'LATE', 'GRADED']
+
+const fmtDT = (iso: string) => iso.slice(0, 16).replace('T', ' ')
+
+const splitDue = (due: string | Date | null | undefined) => {
+  if (!due) return { dueDate: '', dueTime: '23:59' }
+  const d = new Date(due)
+  return { dueDate: d.toISOString().slice(0, 10), dueTime: d.toTimeString().slice(0, 5) }
+}
+
+const earliestDueTarget = (targets: any[]) =>
+  targets.filter(t => t.dueDate).sort((x, y) => +new Date(x.dueDate) - +new Date(y.dueDate))[0]
+
+const statusOf = (a: any, targets: any[]): AssignmentStatus =>
+  targets.length > 0 ? 'ASSIGNED' : a.type === 'SAVED' ? 'SAVED' : 'DRAFT'
+
+// ── API ───────────────────────────────────────────────────────────
+
+/** Danh sách bài tập của giáo viên — kèm lớp, hạn nộp, tiến độ nộp. */
+export async function fetchAssignments(): Promise<Assignment[]> {
+  const { data } = await api.get('/assignments')
+  const items = Array.isArray(data) ? data : data?.data ?? []
+  return items.map((a: any): Assignment => {
+    const targets: any[] = a.targets ?? []
+    const classTarget = targets.find(t => t.class) ?? targets[0]
+    const dueTarget = earliestDueTarget(targets)
+    const { dueDate, dueTime } = splitDue(dueTarget?.dueDate)
+    return {
+      id: String(a.id),
+      title: a.title ?? '',
+      class: classTarget?.class?.name ?? '',
+      classId: classTarget?.classId ?? '',
+      targetId: dueTarget?.id ?? targets[0]?.id ?? null,
+      status: statusOf(a, targets),
+      durationMin: null,
+      dueDate,
+      dueTime,
+      createdAt: a.createdAt ? String(a.createdAt).slice(0, 10) : '',
+      totalQuestions: a._count?.questions ?? 0,
+      desc: '',
+      questionIds: [],
+      questions: [],
+      students: [],
+      totalStudents: targets.reduce((n, t) => n + (t.class?._count?.students ?? (t.student ? 1 : 0)), 0),
+      doneCount: targets.reduce(
+        (n, t) => n + (t.submissions ?? []).filter((s: any) => DONE_STATUSES.includes(s.status)).length,
+        0,
+      ),
+      version: 1,
+      editedAt: null,
+    }
+  })
+}
+
+/** Chi tiết bài tập: câu hỏi đầy đủ + danh sách học sinh (roster lớp merge với bài nộp). */
 export async function fetchAssignmentDetail(id: string): Promise<Assignment | null> {
   try {
     const [{ data: asg }, { data: subsRaw }] = await Promise.all([
@@ -123,28 +129,61 @@ export async function fetchAssignmentDetail(id: string): Promise<Assignment | nu
       api.get(`/assignments/${id}/submissions`),
     ])
     const subs: any[] = Array.isArray(subsRaw) ? subsRaw : subsRaw?.value ?? subsRaw?.items ?? []
-    const target = asg.targets?.[0]
-    const due = target?.dueDate ? new Date(target.dueDate) : null
-    return {
-      id: -1,
-      title: asg.title ?? '',
-      class: subs[0]?.assignmentTarget?.class?.name ?? '',
-      status: (asg.targets?.length ?? 0) > 0 ? 'ASSIGNED' : 'DRAFT',
-      durationMin: null,
-      dueDate: due ? due.toISOString().slice(0, 10) : '',
-      dueTime: due ? due.toTimeString().slice(0, 5) : '23:59',
-      createdAt: asg.createdAt ? String(asg.createdAt).slice(0, 10) : '',
-      totalQuestions: asg.questions?.length ?? 0,
-      desc: '',
-      questionIds: (asg.questions ?? []).map((q: any) => q.questionId ?? q.id),
-      students: subs.map((s: any, i: number): StudentSubmission => ({
-        id: i + 1,
-        name: s.student?.fullName ?? s.student?.name ?? `Học sinh ${i + 1}`,
-        completedAt: s.submittedAt ?? (s.status === 'SUBMITTED' || s.status === 'GRADED' ? s.updatedAt ?? null : null),
-        score: s.totalScore ?? null,
+    const subByStudent = new Map<string, any>(subs.map((s: any) => [s.student?.id, s]))
+
+    const targets: any[] = asg.targets ?? []
+    const classTarget = targets.find(t => t.class) ?? targets[0]
+    const dueTarget = earliestDueTarget(targets)
+    const { dueDate, dueTime } = splitDue(dueTarget?.dueDate)
+
+    // Gộp roster các lớp được giao + học sinh được giao trực tiếp, merge bài nộp.
+    const students = new Map<string, StudentSubmission>()
+    const pushStudent = (st: any) => {
+      if (!st?.id || students.has(st.id)) return
+      const sub = subByStudent.get(st.id)
+      const done = sub && (sub.submittedAt || DONE_STATUSES.includes(sub.status))
+      students.set(st.id, {
+        id: String(st.id),
+        name: st.fullName ?? st.name ?? 'Học sinh',
+        submissionId: sub?.id ?? null,
+        completedAt: done ? fmtDT(String(sub.submittedAt ?? sub.updatedAt)) : null,
+        score: sub?.totalScore ?? null,
         timeSpent: null,
         answers: [],
-      })),
+      })
+    }
+    for (const t of targets) {
+      for (const cs of t.class?.students ?? []) pushStudent(cs.student)
+      if (t.student) pushStudent(t.student)
+    }
+    // Học sinh có submission nhưng không nằm trong roster (hiếm) vẫn được hiển thị.
+    for (const s of subs) {
+      if (s.student?.id && !students.has(s.student.id)) pushStudent(s.student)
+    }
+
+    const questions: BankQuestion[] = (asg.questions ?? [])
+      .map((aq: any) => aq.question ?? aq)
+      .filter((q: any) => q && q.questionText)
+      .map(apiToBankQuestion)
+
+    return {
+      id: String(asg.id),
+      title: asg.title ?? '',
+      class: classTarget?.class?.name ?? subs[0]?.assignmentTarget?.class?.name ?? '',
+      classId: classTarget?.classId ?? '',
+      targetId: dueTarget?.id ?? targets[0]?.id ?? null,
+      status: statusOf(asg, targets),
+      durationMin: null,
+      dueDate,
+      dueTime,
+      createdAt: asg.createdAt ? String(asg.createdAt).slice(0, 10) : '',
+      totalQuestions: (asg.questions ?? []).length,
+      desc: '',
+      questionIds: (asg.questions ?? []).map((aq: any) => aq.questionId ?? aq.question?.id ?? aq.id),
+      questions,
+      students: [...students.values()],
+      totalStudents: students.size,
+      doneCount: [...students.values()].filter(s => s.completedAt).length,
       version: 1,
       editedAt: null,
     }
@@ -153,150 +192,101 @@ export async function fetchAssignmentDetail(id: string): Promise<Assignment | nu
   }
 }
 
-// ── Seed data ─────────────────────────────────────────────────────
+export interface CreateAssignmentInput {
+  title: string
+  /** 'QUIZ' = giao ngay | 'SAVED' | 'DRAFT' */
+  type?: string
+  questionIds: string[]
+}
 
-export const makeAnswers = (correct: boolean[]): QuestionAnswer[] => [
-  {
-    qi: 1, text: 'Nghiệm của phương trình x² − 5x + 6 = 0 là:',
-    type: 'single', options: ['x = 2 và x = 3', 'x = 1 và x = 6', 'x = −2 và x = −3', 'Không có nghiệm'],
-    correct: 0, studentAnswer: correct[0] ? 0 : 1, isCorrect: correct[0],
-  },
-  {
-    qi: 2, text: 'Tập xác định của hàm số y = √(x − 1) là:',
-    type: 'single', options: ['x ≥ 0', 'x ≥ 1', 'x > 1', 'x ∈ ℝ'],
-    correct: 1, studentAnswer: correct[1] ? 1 : 0, isCorrect: correct[1],
-  },
-  {
-    qi: 3, text: 'Các số nào sau đây là số nguyên tố?',
-    type: 'multiple', options: ['2', '4', '7', '11', '15'],
-    correct: [0, 2, 3], studentAnswer: correct[2] ? [0, 2, 3] : [0, 2], isCorrect: correct[2],
-  },
-  {
-    qi: 4, text: 'Đạo hàm của hàm số y = x³ − 2x² + 5 là:',
-    type: 'single', options: ["y' = 3x² − 4x", "y' = 3x² − 2x", "y' = x² − 4x", "y' = 3x³ − 4x²"],
-    correct: 0, studentAnswer: correct[3] ? 0 : 2, isCorrect: correct[3],
-  },
-  {
-    qi: 5, text: 'Công thức tính đạo hàm của hàm hợp f(g(x)) là gì?',
-    type: 'short', options: [], correct: "f'(g(x)) · g'(x)",
-    studentAnswer: correct[4] ? "f'(g(x)) · g'(x)" : "f'(x) · g'(x)", isCorrect: correct[4],
-  },
-]
+export async function createAssignment(input: CreateAssignmentInput): Promise<{ id: string }> {
+  const { data } = await api.post('/assignments', {
+    title: input.title,
+    type: input.type,
+    questions: input.questionIds.map((questionId, i) => ({ questionId, orderIndex: i })),
+  })
+  return data
+}
 
-export const seedAssignments: Assignment[] = [
-  {
-    id: 1, title: 'Kiểm tra chương 3 — Hàm số', class: 'Toán 10A',
-    status: 'ASSIGNED', durationMin: 45,
-    dueDate: '2026-09-10', dueTime: '23:59', createdAt: '2026-08-20', totalQuestions: 5, desc: '',
-    version: 1, editedAt: null,
-    questionIds: ['q1', 'q3', 'q2', 'q5', 'q4'],
-    students: [
-      { id: 1, name: 'Lê Hoàng Anh',    completedAt: '2026-08-21 08:34', score: 9.0, timeSpent: '14 phút', answers: makeAnswers([true,true,true,true,false]) },
-      { id: 2, name: 'Trần Minh Bảo',   completedAt: '2026-08-21 09:12', score: 7.5, timeSpent: '22 phút', answers: makeAnswers([true,true,false,true,false]) },
-      { id: 3, name: 'Nguyễn Thị Châu', completedAt: '2026-08-22 07:55', score: 8.5, timeSpent: '18 phút', answers: makeAnswers([true,true,true,false,true]) },
-      { id: 4, name: 'Phạm Quốc Dũng',  completedAt: '2026-08-22 14:30', score: 6.0, timeSpent: '31 phút', answers: makeAnswers([true,false,false,true,false]) },
-      { id: 5, name: 'Vũ Thị Hà',       completedAt: null, score: null, timeSpent: null, answers: [] },
-      { id: 6, name: 'Hoàng Văn Hùng',  completedAt: null, score: null, timeSpent: null, answers: [] },
-      { id: 7, name: 'Đỗ Thị Lan',      completedAt: '2026-08-23 20:11', score: 9.5, timeSpent: '10 phút', answers: makeAnswers([true,true,true,true,true]) },
-      { id: 8, name: 'Bùi Minh Long',   completedAt: null, score: null, timeSpent: null, answers: [] },
-      { id: 9, name: 'Lý Thị Mai',      completedAt: '2026-08-21 15:42', score: 8.0, timeSpent: '16 phút', answers: makeAnswers([true,true,false,true,true]) },
-      { id: 10, name: 'Tô Quang Nam',   completedAt: null, score: null, timeSpent: null, answers: [] },
-    ],
-  },
-  {
-    id: 2, title: 'Bài tập đạo hàm — Luyện tập', class: 'Toán 11B',
-    status: 'ASSIGNED', durationMin: null,
-    dueDate: '2026-09-12', dueTime: '21:00', createdAt: '2026-08-21', totalQuestions: 5, desc: 'Ôn tập phần đạo hàm cơ bản',
-    version: 2, editedAt: '2026-08-23 09:00',
-    questionIds: ['q4', 'q5', 'q9'],
-    students: [
-      { id: 1, name: 'Lê Hoàng Anh',  completedAt: null, score: null, timeSpent: null, answers: [] },
-      { id: 2, name: 'Cao Thị An',    completedAt: '2026-08-22 07:20', score: 10,  timeSpent: '9 phút',  answers: makeAnswers([true,true,true,true,true]) },
-      { id: 3, name: 'Đinh Văn Bình', completedAt: '2026-08-22 08:05', score: 8.5, timeSpent: '15 phút', answers: makeAnswers([true,true,true,false,true]) },
-      { id: 4, name: 'Hà Thị Cúc',    completedAt: null, score: null, timeSpent: null, answers: [] },
-      { id: 5, name: 'Lê Đức Duy',    completedAt: '2026-08-23 19:44', score: 7.0, timeSpent: '24 phút', answers: makeAnswers([true,false,true,false,true]) },
-      { id: 6, name: 'Mai Thị Hoa',   completedAt: null, score: null, timeSpent: null, answers: [] },
-      { id: 7, name: 'Ngô Văn Khoa',  completedAt: '2026-08-22 10:30', score: 9.0, timeSpent: '12 phút', answers: makeAnswers([true,true,true,true,false]) },
-    ],
-  },
-  {
-    id: 3, title: 'Kiểm tra giữa kỳ — Tích phân', class: 'Toán 12A',
-    status: 'ASSIGNED', durationMin: 60,
-    dueDate: '2026-08-18', dueTime: '22:30', createdAt: '2026-08-14', totalQuestions: 5, desc: '',
-    version: 1, editedAt: null,
-    questionIds: ['q6', 'q8'],
-    students: [
-      { id: 1, name: 'An Thị Bảo',      completedAt: '2026-08-15 08:10', score: 8.0, timeSpent: '35 phút', answers: makeAnswers([true,true,false,true,true]) },
-      { id: 2, name: 'Bùi Văn Cường',   completedAt: '2026-08-15 09:22', score: 7.5, timeSpent: '40 phút', answers: makeAnswers([true,false,true,true,false]) },
-      { id: 3, name: 'Châu Thị Dung',   completedAt: '2026-08-16 07:50', score: 9.0, timeSpent: '28 phút', answers: makeAnswers([true,true,true,false,true]) },
-      { id: 4, name: 'Đặng Minh Đức',   completedAt: '2026-08-16 08:30', score: 6.5, timeSpent: '45 phút', answers: makeAnswers([true,false,false,true,true]) },
-      { id: 5, name: 'Giang Thị Hương', completedAt: '2026-08-15 14:05', score: 8.5, timeSpent: '32 phút', answers: makeAnswers([true,true,true,true,false]) },
-    ],
-  },
-  {
-    id: 4, title: 'Bài tập hàm số — Ôn tập cuối chương', class: 'Toán 10A',
-    status: 'ASSIGNED', durationMin: null,
-    dueDate: '2026-09-15', dueTime: '23:59', createdAt: '2026-09-01', totalQuestions: 5, desc: '',
-    version: 1, editedAt: null,
-    questionIds: ['q1', 'q3'],
-    students: [
-      { id: 1, name: 'Lê Hoàng Anh',    completedAt: null, score: null, timeSpent: null, answers: [] },
-      { id: 2, name: 'Trần Minh Bảo',   completedAt: '2026-09-03 10:15', score: 8.0, timeSpent: '20 phút', answers: makeAnswers([true,true,false,true,true]) },
-      { id: 3, name: 'Nguyễn Thị Châu', completedAt: null, score: null, timeSpent: null, answers: [] },
-      { id: 4, name: 'Vũ Thị Hà',       completedAt: '2026-09-04 08:40', score: 7.5, timeSpent: '25 phút', answers: makeAnswers([true,false,true,true,false]) },
-    ],
-  },
-  {
-    id: 5, title: 'Bài tập dao động cơ — Luyện tập', class: 'Lý 12C',
-    status: 'ASSIGNED', durationMin: 30,
-    dueDate: '2026-09-09', dueTime: '22:00', createdAt: '2026-09-02', totalQuestions: 5, desc: '',
-    version: 1, editedAt: null,
-    questionIds: ['q6', 'q8'],
-    students: [
-      { id: 1, name: 'Lê Hoàng Anh',   completedAt: null, score: null, timeSpent: null, answers: [] },
-      { id: 2, name: 'Phan Văn Đạt',   completedAt: '2026-09-03 15:30', score: 8.5, timeSpent: '18 phút', answers: makeAnswers([true,true,true,false,true]) },
-      { id: 3, name: 'Trịnh Thị Nga',  completedAt: null, score: null, timeSpent: null, answers: [] },
-    ],
-  },
-  {
-    id: 6, title: 'Kiểm tra 15 phút — Bảng tuần hoàn', class: 'Hóa 10D',
-    status: 'ASSIGNED', durationMin: 15,
-    dueDate: '2026-09-04', dueTime: '23:59', createdAt: '2026-08-30', totalQuestions: 5, desc: '',
-    version: 1, editedAt: null,
-    questionIds: ['q1', 'q2'],
-    students: [
-      { id: 1, name: 'Lê Hoàng Anh',   completedAt: '2026-09-03 19:20', score: 8.0, timeSpent: '12 phút', answers: makeAnswers([true,true,true,false,true]) },
-      { id: 2, name: 'Đoàn Văn Phúc',  completedAt: '2026-09-03 20:05', score: 7.0, timeSpent: '14 phút', answers: makeAnswers([true,false,true,false,true]) },
-      { id: 3, name: 'Hồ Thị Quỳnh',   completedAt: null, score: null, timeSpent: null, answers: [] },
-    ],
-  },
-  {
-    id: 7, title: 'Bài tập vectơ — Ôn tập', class: 'Toán 10A',
-    status: 'ASSIGNED', durationMin: null,
-    dueDate: '2026-09-02', dueTime: '23:59', createdAt: '2026-08-26', totalQuestions: 5, desc: '',
-    version: 3, editedAt: '2026-08-31 15:20',
-    questionIds: ['q1', 'q3'],
-    students: [
-      { id: 1, name: 'Lê Hoàng Anh',    completedAt: null, score: null, timeSpent: null, answers: [] },
-      { id: 2, name: 'Trần Minh Bảo',   completedAt: '2026-09-01 20:10', score: 8.5, timeSpent: '17 phút', answers: makeAnswers([true,true,true,false,true]) },
-      { id: 3, name: 'Nguyễn Thị Châu', completedAt: '2026-09-02 08:45', score: 9.0, timeSpent: '15 phút', answers: makeAnswers([true,true,true,true,false]) },
-      { id: 4, name: 'Đỗ Thị Lan',      completedAt: '2026-08-30 21:30', score: 9.5, timeSpent: '11 phút', answers: makeAnswers([true,true,true,true,true]) },
-    ],
-  },
-  {
-    id: 8, title: 'Ôn tập phương trình lượng giác', class: 'Toán 11B',
-    status: 'SAVED', durationMin: 30,
-    dueDate: '2026-11-05', dueTime: '23:59', createdAt: '2026-10-27', totalQuestions: 5, desc: '',
-    version: 1, editedAt: null,
-    questionIds: ['q2', 'q7'],
-    students: [],
-  },
-  {
-    id: 9, title: 'Bài tập nháp — chưa hoàn thiện', class: '',
-    status: 'DRAFT', durationMin: null,
-    dueDate: '', dueTime: '23:59', createdAt: '2026-10-28', totalQuestions: 0, desc: '',
-    version: 1, editedAt: null,
-    questionIds: [],
-    students: [],
-  },
-]
+export async function updateAssignment(id: string, patch: { title?: string; type?: string }): Promise<void> {
+  await api.patch(`/assignments/${id}`, patch)
+}
+
+export async function deleteAssignment(id: string): Promise<void> {
+  await api.delete(`/assignments/${id}`)
+}
+
+export interface AssignTargetInput {
+  classId?: string
+  studentId?: string
+  dueDate?: string // ISO datetime
+}
+
+export async function assignTarget(assignmentId: string, target: AssignTargetInput): Promise<void> {
+  await api.post(`/assignments/${assignmentId}/targets`, target)
+}
+
+export async function updateTargetDue(assignmentId: string, targetId: string, dueDateIso: string): Promise<void> {
+  await api.patch(`/assignments/${assignmentId}/targets/${targetId}`, { dueDate: dueDateIso })
+}
+
+// ── Bài làm của học sinh ──────────────────────────────────────────
+
+/** Map một submission answer từ API sang QuestionAnswer (dùng chung teacher/student view). */
+export function apiToReviewAnswer(ans: any, index: number): QuestionAnswer {
+  const q = ans.question ?? {}
+  const options: any[] = (q.options ?? [])
+    .slice()
+    .sort((a: any, b: any) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+  const optTexts = options.map((o) => o.optionText ?? '')
+  const type: QuestionAnswer['type'] =
+    q.type === 'MULTI' ? 'multiple' : q.type === 'FILL_BLANK' ? 'short' : 'single'
+
+  const correctIdx = options
+    .map((o, i) => (o.isCorrect ? i : -1))
+    .filter((i) => i >= 0)
+  const selectedIds: string[] = Array.isArray(ans.selectedOptionIds) ? ans.selectedOptionIds : []
+  const selIdx = options
+    .map((o, i) => (selectedIds.includes(o.id) ? i : -1))
+    .filter((i) => i >= 0)
+
+  let correct: QuestionAnswer['correct']
+  let studentAnswer: QuestionAnswer['studentAnswer']
+  if (type === 'short') {
+    correct = options.find((o) => o.isCorrect)?.optionText ?? ''
+    studentAnswer = ans.textAnswer ?? ''
+  } else if (type === 'multiple') {
+    correct = correctIdx
+    studentAnswer = selIdx
+  } else {
+    correct = correctIdx[0] ?? 0
+    studentAnswer = selIdx[0] ?? -1
+  }
+
+  const isCorrect =
+    ans.isCorrect ??
+    (type === 'short'
+      ? typeof correct === 'string' &&
+        correct !== '' &&
+        String(studentAnswer).trim().toLowerCase() === correct.toLowerCase()
+      : type === 'multiple'
+        ? JSON.stringify([...(correct as number[])].sort()) ===
+          JSON.stringify([...(studentAnswer as number[])].sort())
+        : studentAnswer === correct && (studentAnswer as number) >= 0)
+
+  return {
+    qi: index + 1,
+    text: q.questionText ?? '',
+    type,
+    options: optTexts,
+    correct,
+    studentAnswer,
+    isCorrect,
+  }
+}
+
+/** Lấy đáp án chi tiết một bài nộp (giáo viên xem bài làm của học sinh). */
+export async function fetchSubmissionAnswers(submissionId: string): Promise<QuestionAnswer[]> {
+  const { data } = await api.get(`/submissions/${submissionId}`)
+  return (data.answers ?? []).map((ans: any, i: number) => apiToReviewAnswer(ans, i))
+}

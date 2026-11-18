@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
-  seedAssignments,
+  fetchAssignments,
   isPast,
   fmtDate,
   STATUS_META,
   type AssignmentStatus,
+  type Assignment,
 } from '@/data/assignments'
 
 // ── Main page ─────────────────────────────────────────────────────
@@ -24,7 +26,11 @@ const TABS: { key: '' | AssignmentStatus; label: string }[] = [
 
 export default function AssignmentManager({ onCreateNew, highlightClass }: Props) {
   const navigate = useNavigate()
-  const [assignments] = useState(seedAssignments)
+  const { data: assignments = [], isLoading } = useQuery<Assignment[]>({
+    queryKey: ['teacher-assignments'],
+    queryFn: fetchAssignments,
+    retry: 1,
+  })
   const [filterClass, setFilterClass] = useState(highlightClass ?? '')
   const [filterStatus, setFilterStatus] = useState<'' | AssignmentStatus>('')
   const [search, setSearch] = useState('')
@@ -94,7 +100,9 @@ export default function AssignmentManager({ onCreateNew, highlightClass }: Props
       </div>
 
       {/* Bảng danh sách */}
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: '#9CA3AF', fontSize: 14 }}>Đang tải bài tập…</div>
+      ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#9CA3AF', fontSize: 14 }}>Không có bài tập nào</div>
       ) : (
         <div className="card" style={{ overflow: 'hidden' }}>
@@ -104,8 +112,9 @@ export default function AssignmentManager({ onCreateNew, highlightClass }: Props
           </div>
 
           {filtered.map((a, i) => {
-            const done = a.students.filter(s => s.completedAt).length
-            const pct  = a.students.length ? Math.round((done / a.students.length) * 100) : null
+            const done = a.doneCount
+            const total = a.totalStudents
+            const pct  = total ? Math.round((done / total) * 100) : (a.status === 'ASSIGNED' ? 0 : null)
             const past = a.dueDate ? isPast(a.dueDate) : false
             const meta = STATUS_META[a.status]
             return (
@@ -141,7 +150,7 @@ export default function AssignmentManager({ onCreateNew, highlightClass }: Props
                 <div>
                   {pct !== null ? (
                     <>
-                      <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 3 }}>{done}/{a.students.length} · <strong style={{ color: pct === 100 ? '#22C55E' : '#2563EB' }}>{pct}%</strong></div>
+                      <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 3 }}>{done}/{total} · <strong style={{ color: pct === 100 ? '#22C55E' : '#2563EB' }}>{pct}%</strong></div>
                       <div style={{ height: 4, background: '#F3F4F6', borderRadius: 99 }}>
                         <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#22C55E' : '#2563EB', borderRadius: 99 }} />
                       </div>

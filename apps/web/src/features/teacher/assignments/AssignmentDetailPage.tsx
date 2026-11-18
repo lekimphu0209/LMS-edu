@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  seedAssignments, classRosters, isPast, fmtDate, scoreColor, bumpVersion, fetchAssignmentDetail, STATUS_META,
+  fetchAssignmentDetail, fetchSubmissionAnswers, updateAssignment, deleteAssignment,
+  assignTarget, updateTargetDue,
+  isPast, fmtDate, scoreColor, bumpVersion, STATUS_META,
   type Assignment, type StudentSubmission,
 } from '@/data/assignments'
 import type { AssignmentPrefill } from './CreateAssignmentPage'
-import { seedQuestions, type BankQuestion } from '@/data/questionBank'
+import { getTeacherClasses } from '@/data/classes'
 import { QuestionCard } from '../shared/components/question'
 
 // ── Icons nhỏ ─────────────────────────────────────────────────────
@@ -225,62 +228,41 @@ function exportScores(a: Assignment) {
 export default function AssignmentDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { state } = useLocation()
-  const idx = seedAssignments.findIndex(x => x.id === Number(id) || String(x.id) === id)
-  const [a, setA] = useState<Assignment | null>(() => {
-    if (idx >= 0) return seedAssignments[idx]
-    // Bài tập mở từ trang chi tiết lớp: id là khóa API — dựng bản xem từ dữ liệu đi kèm + roster lớp
-    const f = (state as { fallback?: { title: string; className?: string; due?: string | null; submitted?: number; total?: number } } | null)?.fallback
-    if (!f) return null
-    const [d, m, y] = (f.due ?? '').split('/')
-    const submitted = f.submitted ?? 0
-    return {
-      id: -1,
-      title: f.title,
-      class: f.className ?? '',
-      status: 'ASSIGNED',
-      durationMin: null,
-      dueDate: d && m && y ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : '',
-      dueTime: '23:59',
-      createdAt: '',
-      totalQuestions: 0,
-      desc: '',
-      questionIds: [],
-      students: (classRosters[f.className ?? ''] ?? []).map((s, i) => ({
-        id: s.id, name: s.name,
-        completedAt: i < submitted ? '2026-10-27 20:00' : null,
-        score: i < submitted ? 8 : null,
-        timeSpent: i < submitted ? '15 phút' : null,
-        answers: [],
-      })),
-      version: 1, editedAt: null,
-    }
+  const queryClient = useQueryClient()
+
+  const { data: fetched, isLoading } = useQuery<Assignment | null>({
+    queryKey: ['assignment-detail', id],
+    queryFn: () => fetchAssignmentDetail(id!),
+    enabled: !!id,
+    retry: 1,
+  })
+  // Overlay cục bộ sau mỗi lần sửa để UI phản ánh ngay (version/editedAt là cờ client)
+  const [local, setLocal] = useState<Assignment | null>(null)
+  useEffect(() => { setLocal(null) }, [id])
+  const a = local ?? fetched
+
+  // Danh sách lớp của giáo viên (modal giao bài)
+  const { data: teacherClassList = [] } = useQuery({
+    queryKey: ['teacher-classes'],
+    queryFn: getTeacherClasses,
+    retry: 1,
   })
 
-  // id không khớp seed → bài từ API (trang lớp): fetch dữ liệu thật; fallback state giữ lại nếu API lỗi
-  const [loading, setLoading] = useState(false)
-  useEffect(() => {
-    if (idx >= 0 || !id) return
-    setLoading(true)
-    fetchAssignmentDetail(id)
-      .then(res => { if (res) setA(res) })
-      .finally(() => setLoading(false))
-  }, [id])
-
   const [editField, setEditField] = useState<string | null>(null)
-  const [tmp, setTmp] = useState({ title: '', desc: '', dueDate: '', dueTime: '', durationMin: 0 })
+  const [tmp, setTmp] = useState({ title: '', dueDate: '', dueTime: '' })
   const [tab, setTab] = useState<'done' | 'pending'>('done')
   const [viewingStudent, setViewingStudent] = useState<StudentSubmission | null>(null)
   const [notes, setNotes] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [assignClassId, setAssignClassId] = useState('')
+  const [assignDue, setAssignDue] = useState({ date: '', time: '23:59' })
 
   const done = useMemo(() => a?.students.filter(s => s.completedAt) ?? [], [a])
   const pending = useMemo(() => a?.students.filter(s => !s.completedAt) ?? [], [a])
-  const contentQuestions = useMemo(
-    () => a?.questionIds.map(qid => seedQuestions.find(q => q.id === qid)).filter((q): q is BankQuestion => !!q) ?? [],
-    [a],
-  )
+  const contentQuestions = a?.questions ?? []
 
-  if (!a && loading) {
+  if (!a && isLoading) {
     return <div className="page-container" style={{ paddingTop: 40, color: '#6B7280' }}>Đang tải bài tập…</div>
   }
 
@@ -298,46 +280,105 @@ export default function AssignmentDetail() {
   const pct = a.students.length ? Math.round((done.length / a.students.length) * 100) : 0
   const avgScore = done.length ? (done.reduce((s, x) => s + (x.score ?? 0), 0) / done.length).toFixed(1) : '—'
   const isAssigned = a.status === 'ASSIGNED'
-  /** Đủ điều kiện giao: có tên, lớp, hạn nộp và ít nhất 1 câu hỏi. */
-  const canAssign = Boolean(a.title.trim() && a.class && a.dueDate && a.dueTime && a.totalQuestions > 0)
+  /** Đủ điều kiện giao: có tên và ít nhất 1 câu hỏi (lớp + hạn nộp chọn ở modal Giao bài). */
+  const canAssign = Boolean(a.title.trim() && a.totalQuestions > 0)
 
-  /** Lưu thay đổi — bài đã giao sửa thông tin thì tăng version để đánh dấu bản sửa đổi. */
-  const save = (patch: Partial<Assignment>) => {
-    const bumped: Partial<Assignment> = isAssigned && !('status' in patch) ? bumpVersion(a) : {}
-    const next: Assignment = { ...a, ...patch, ...bumped }
-    if (idx >= 0) seedAssignments[idx] = next
-    setA(next)
+  const errMsg = (e: any) => e?.response?.data?.message ?? 'Có lỗi xảy ra. Vui lòng thử lại.'
+  const invalidateList = () => queryClient.invalidateQueries({ queryKey: ['teacher-assignments'] })
+  const refetchDetail = () => {
+    setLocal(null)
+    queryClient.invalidateQueries({ queryKey: ['assignment-detail', id] })
+  }
+
+  /** Lưu thay đổi — PATCH lên API rồi cập nhật overlay cục bộ; bài đã giao tăng version. */
+  const save = async (patch: Partial<Assignment>) => {
+    if (!a || saving) return
+    setSaving(true)
+    try {
+      if (patch.title !== undefined) await updateAssignment(a.id, { title: patch.title })
+      if (patch.status === 'SAVED' || patch.status === 'DRAFT') {
+        await updateAssignment(a.id, { type: patch.status })
+      }
+      if ((patch.dueDate || patch.dueTime) && a.targetId) {
+        const dd = patch.dueDate ?? a.dueDate
+        const tt = patch.dueTime ?? a.dueTime
+        await updateTargetDue(a.id, a.targetId, new Date(`${dd}T${tt || '23:59'}:00`).toISOString())
+      }
+      const bumped = isAssigned && !('status' in patch) ? bumpVersion(a) : {}
+      setLocal({ ...a, ...patch, ...bumped })
+      invalidateList()
+    } catch (e: any) {
+      window.alert(errMsg(e))
+    } finally {
+      setSaving(false)
+    }
   }
 
   const startEdit = (field: string) => {
-    setTmp({ title: a.title, desc: a.desc, dueDate: a.dueDate, dueTime: a.dueTime, durationMin: a.durationMin ?? 0 })
+    setTmp({ title: a.title, dueDate: a.dueDate, dueTime: a.dueTime })
     setEditField(field)
   }
 
-  /** Popup sửa thông tin: 1 form chung cho Mô tả / Hạn nộp / Thời gian làm. */
+  /** Popup sửa thông tin — hiện chỉ chỉnh được Hạn nộp (field duy nhất API hỗ trợ ngoài tên). */
   const [infoOpen, setInfoOpen] = useState(false)
   const openInfo = () => {
-    setTmp({ title: a.title, desc: a.desc, dueDate: a.dueDate, dueTime: a.dueTime, durationMin: a.durationMin ?? 0 })
+    setTmp({ title: a.title, dueDate: a.dueDate, dueTime: a.dueTime })
     setInfoOpen(true)
   }
   const saveInfo = () => {
-    save({ desc: tmp.desc, dueDate: tmp.dueDate, dueTime: tmp.dueTime, durationMin: tmp.durationMin > 0 ? tmp.durationMin : null })
+    void save({ dueDate: tmp.dueDate, dueTime: tmp.dueTime })
     setInfoOpen(false)
   }
 
-  const assignNow = () => {
+  const openAssign = () => {
     if (!canAssign) return
-    const roster = classRosters[a.class] ?? []
-    save({
-      status: 'ASSIGNED',
-      students: roster.map(s => ({ id: s.id, name: s.name, completedAt: null, score: null, timeSpent: null, answers: [] })),
-    })
+    setAssignClassId(a.classId || '')
+    setAssignDue({ date: a.dueDate || new Date(Date.now() + 86400000).toISOString().slice(0, 10), time: a.dueTime || '23:59' })
+    setAssignOpen(true)
   }
 
-  const removeAssignment = () => {
+  /** Giao bài: tạo target lớp + hạn nộp, chuyển type sang QUIZ, refetch để lấy roster thật. */
+  const doAssign = async () => {
+    if (!a || !assignClassId || !assignDue.date || saving) return
+    setSaving(true)
+    try {
+      const dueIso = new Date(`${assignDue.date}T${assignDue.time || '23:59'}:00`).toISOString()
+      await assignTarget(a.id, { classId: assignClassId, dueDate: dueIso })
+      await updateAssignment(a.id, { type: 'QUIZ' })
+      setAssignOpen(false)
+      invalidateList()
+      refetchDetail()
+    } catch (e: any) {
+      window.alert(errMsg(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const removeAssignment = async () => {
+    if (!a) return
     if (!window.confirm(`Xóa bài tập "${a.title}"? ${isAssigned ? 'Dữ liệu bài làm học sinh cũng mất.' : ''}`)) return
-    if (idx >= 0) seedAssignments.splice(idx, 1)
-    navigate('/assignments')
+    try {
+      await deleteAssignment(a.id)
+      invalidateList()
+      navigate('/assignments')
+    } catch (e: any) {
+      window.alert(errMsg(e))
+    }
+  }
+
+  /** Mở bài làm của học sinh — lấy đáp án chi tiết từ submission khi cần. */
+  const openStudent = async (s: StudentSubmission) => {
+    if (s.submissionId && s.answers.length === 0) {
+      try {
+        const answers = await fetchSubmissionAnswers(s.submissionId)
+        setViewingStudent({ ...s, answers })
+        return
+      } catch {
+        // hiện viewer rỗng nếu không lấy được đáp án
+      }
+    }
+    setViewingStudent(s)
   }
 
   /** Nhân bản: mở trang soạn đề với toàn bộ nội dung bản gốc — sửa lớp/HS/câu hỏi rồi giao cho đối tượng khác. */
@@ -345,11 +386,10 @@ export default function AssignmentDetail() {
     const prefill: AssignmentPrefill = {
       sourceTitle: a.title,
       title: `${a.title} - Bản sao`,
-      desc: a.desc,
+      classId: a.classId,
       class: a.class,
       dueDate: a.dueDate,
       dueTime: a.dueTime,
-      durationMin: a.durationMin,
       questionIds: [...a.questionIds],
     }
     navigate('/assignments/new', { state: { prefill } })
@@ -385,7 +425,7 @@ export default function AssignmentDetail() {
           )}
           <div style={{ fontSize: 12.5, color: '#6B7280', marginTop: 6 }}>
             {a.class && <span className="badge-info" style={{ marginRight: 8 }}>{a.class}</span>}
-            Tạo ngày {fmtDate(a.createdAt)} · {a.totalQuestions} câu hỏi · {a.durationMin ? `${a.durationMin} phút` : 'không giới hạn thời gian'}
+            Tạo ngày {fmtDate(a.createdAt)} · {a.totalQuestions} câu hỏi
             {a.version > 1 && (
               <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 9px', borderRadius: 12, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' }}
                 title={a.editedAt ? `Sửa lần cuối: ${a.editedAt}` : 'Bài tập đã được chỉnh sửa'}>
@@ -402,7 +442,7 @@ export default function AssignmentDetail() {
           )}
           {a.status === 'SAVED' && (
             <>
-              <button className="btn-primary" onClick={assignNow} disabled={!canAssign}
+              <button className="btn-primary" onClick={openAssign} disabled={!canAssign}
                 style={{ fontSize: 13, fontWeight: 700, opacity: canAssign ? 1 : 0.45, padding: '8px 18px' }}>
                 Giao bài
               </button>
@@ -411,11 +451,11 @@ export default function AssignmentDetail() {
           )}
           {a.status === 'DRAFT' && (
             <>
-              <button className="btn-primary" onClick={assignNow} disabled={!canAssign}
+              <button className="btn-primary" onClick={openAssign} disabled={!canAssign}
                 style={{ fontSize: 13, fontWeight: 700, opacity: canAssign ? 1 : 0.45, padding: '8px 18px' }}>
                 Giao bài
               </button>
-              <GhostBtn onClick={() => save({ status: 'SAVED' })}>Lưu</GhostBtn>
+              <GhostBtn onClick={() => void save({ status: 'SAVED' })}>Lưu</GhostBtn>
               <GhostBtn danger onClick={removeAssignment}><TrashIcon /> Xóa</GhostBtn>
             </>
           )}
@@ -504,7 +544,7 @@ export default function AssignmentDetail() {
                                 <td style={{ padding: '10px 14px', textAlign: 'center', fontSize: 12.5, color: '#6B7280' }}>{s.timeSpent}</td>
                                 <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, color: '#9CA3AF' }}>{s.completedAt}</td>
                                 <td style={{ padding: '10px 16px', textAlign: 'center' }}>
-                                  <button onClick={() => setViewingStudent(s)}
+                                  <button onClick={() => void openStudent(s)}
                                     style={{ padding: '5px 12px', background: '#EFF6FF', border: 'none', borderRadius: 7, color: '#2563EB', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                     Xem bài làm
                                   </button>
@@ -576,19 +616,11 @@ export default function AssignmentDetail() {
               </button>
             </div>
 
-            <InfoRow label="Mô tả">
-              <span style={{ fontSize: 12.5, color: a.desc ? '#111827' : '#D1D5DB' }}>{a.desc || 'Chưa có mô tả'}</span>
-            </InfoRow>
-
             <InfoRow label="Hạn nộp">
               <span style={{ fontSize: 12.5, fontWeight: 600, color: past && isAssigned ? '#EF4444' : '#111827' }}>
                 {a.dueDate ? `${fmtDate(a.dueDate)} lúc ${a.dueTime}` : 'Chưa đặt'}
                 {past && isAssigned ? ' · Đã hết hạn' : ''}
               </span>
-            </InfoRow>
-
-            <InfoRow label="Thời gian làm">
-              <span style={{ fontSize: 12.5, color: '#111827' }}>{a.durationMin ? `${a.durationMin} phút` : 'Không giới hạn'}</span>
             </InfoRow>
           </div>
 
@@ -603,7 +635,7 @@ export default function AssignmentDetail() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#6B7280' }}>Đối tượng được giao</span>
-                <strong>{isAssigned ? `${a.students.length} học sinh` : 'Chưa giao'}</strong>
+                <strong>{isAssigned ? `${a.totalStudents} học sinh` : 'Chưa giao'}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#6B7280' }}>Số câu hỏi</span>
@@ -661,7 +693,7 @@ export default function AssignmentDetail() {
         </div>
       )}
 
-      {/* ── Popup sửa thông tin: Mô tả / Hạn nộp / Thời gian làm ── */}
+      {/* ── Popup sửa thông tin: Hạn nộp (trường duy nhất API hỗ trợ ngoài tên) ── */}
       {infoOpen && (
         <div className="modal-overlay" onClick={() => setInfoOpen(false)}>
           <div className="modal-box" style={{ width: 440, padding: 24 }} onClick={e => e.stopPropagation()}>
@@ -671,37 +703,24 @@ export default function AssignmentDetail() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 5 }}>Mô tả</label>
-                <textarea rows={3} value={tmp.desc} onChange={e => setTmp(t => ({ ...t, desc: e.target.value }))}
-                  placeholder="Mô tả cho học sinh..."
-                  style={{ width: '100%', border: '1.5px solid #E5E7EB', borderRadius: 8, padding: '8px 11px', fontSize: 12.5, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
-              </div>
-
-              <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 5 }}>Hạn nộp</label>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input type="date" value={tmp.dueDate} onChange={e => setTmp(t => ({ ...t, dueDate: e.target.value }))}
+                  <input type="date" value={tmp.dueDate} onChange={e => setTmp(t => ({ ...t, dueDate: e.target.value }))} disabled={!a.targetId}
                     style={{ flex: 1, border: '1.5px solid #E5E7EB', borderRadius: 8, padding: '7px 10px', fontSize: 12.5, outline: 'none' }} />
-                  <input type="time" value={tmp.dueTime} onChange={e => setTmp(t => ({ ...t, dueTime: e.target.value }))}
+                  <input type="time" value={tmp.dueTime} onChange={e => setTmp(t => ({ ...t, dueTime: e.target.value }))} disabled={!a.targetId}
                     style={{ width: 100, border: '1.5px solid #E5E7EB', borderRadius: 8, padding: '7px 10px', fontSize: 12.5, outline: 'none' }} />
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 5 }}>Thời gian làm</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="number" min={0} max={600} value={tmp.durationMin}
-                    onChange={e => setTmp(t => ({ ...t, durationMin: Math.max(0, parseInt(e.target.value) || 0) }))}
-                    style={{ width: 90, border: '1.5px solid #E5E7EB', borderRadius: 8, padding: '7px 10px', fontSize: 12.5, outline: 'none', textAlign: 'center' }} />
-                  <span style={{ fontSize: 12, color: '#6B7280' }}>phút · 0 = không giới hạn</span>
+              {!a.targetId ? (
+                <div style={{ fontSize: 11.5, color: '#9CA3AF' }}>
+                  Hạn nộp được đặt khi giao bài.
                 </div>
-              </div>
-
-              {isAssigned && (
+              ) : isAssigned ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '8px 11px' }}>
                   <WarnIcon /> Thay đổi áp dụng cho học sinh chưa nộp bài
                 </div>
-              )}
+              ) : null}
             </div>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
@@ -709,9 +728,51 @@ export default function AssignmentDetail() {
                 style={{ padding: '8px 16px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: '#6B7280', cursor: 'pointer' }}>
                 Hủy
               </button>
-              <button onClick={saveInfo}
-                style={{ padding: '8px 20px', background: '#2563EB', border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer' }}>
+              <button onClick={saveInfo} disabled={!a.targetId || saving}
+                style={{ padding: '8px 20px', background: '#2563EB', border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', opacity: a.targetId && !saving ? 1 : 0.45 }}>
                 Lưu thay đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Popup giao bài: chọn lớp + hạn nộp ── */}
+      {assignOpen && a && (
+        <div className="modal-overlay" onClick={() => setAssignOpen(false)}>
+          <div className="modal-box" style={{ width: 440, padding: 24 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: 17, color: '#111827', marginBottom: 18 }}>
+              Giao bài cho lớp
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 5 }}>Lớp học</label>
+                <select className="input-field" value={assignClassId} onChange={e => setAssignClassId(e.target.value)}>
+                  <option value="">-- Chọn lớp --</option>
+                  {teacherClassList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 5 }}>Hạn nộp</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="date" value={assignDue.date} onChange={e => setAssignDue(t => ({ ...t, date: e.target.value }))}
+                    style={{ flex: 1, border: '1.5px solid #E5E7EB', borderRadius: 8, padding: '7px 10px', fontSize: 12.5, outline: 'none' }} />
+                  <input type="time" value={assignDue.time} onChange={e => setAssignDue(t => ({ ...t, time: e.target.value }))}
+                    style={{ width: 100, border: '1.5px solid #E5E7EB', borderRadius: 8, padding: '7px 10px', fontSize: 12.5, outline: 'none' }} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setAssignOpen(false)}
+                style={{ padding: '8px 16px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: '#6B7280', cursor: 'pointer' }}>
+                Hủy
+              </button>
+              <button onClick={() => void doAssign()} disabled={!assignClassId || !assignDue.date || saving}
+                style={{ padding: '8px 20px', background: '#2563EB', border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', opacity: assignClassId && assignDue.date && !saving ? 1 : 0.45 }}>
+                {saving ? 'Đang giao…' : 'Giao bài'}
               </button>
             </div>
           </div>
