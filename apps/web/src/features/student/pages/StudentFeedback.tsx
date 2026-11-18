@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CATEGORY_COLORS, CATEGORY_LABELS, type FeedbackCategory } from '@/data/feedback';
 import {
-  STUDENT_NAME,
   getEnrolledClasses,
   getStudentFeedbacks,
   createStudentFeedback,
