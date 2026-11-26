@@ -4,6 +4,7 @@
  * `useAuth()` cho phép mọi component đọc user + login/logout.
  */
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import { api } from '../lib/api';
 
 interface AuthUser {
   id: string;
@@ -35,6 +36,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    // Báo server thu hồi refresh token trước khi xóa local — fire-and-forget,
+    // logout phía client vẫn hoàn tất kể cả khi request lỗi.
+    if (refreshToken) {
+      void api.post('/auth/logout', { refreshToken }).catch(() => undefined);
+    }
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');

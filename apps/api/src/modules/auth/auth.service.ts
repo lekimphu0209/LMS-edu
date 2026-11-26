@@ -3,8 +3,8 @@
  * đổi mật khẩu và lấy hồ sơ người dùng.
  *
  * Mật khẩu băm bằng argon2. Refresh token bị thu hồi được lưu dạng hash
- * (SHA-256) trong bộ nhớ — đơn giản, đủ dùng cho chạy một instance;
- * cần lưu DB nếu scale nhiều instance.
+ * (SHA-256) trong bảng revoked_tokens — tồn tại qua restart và dùng được
+ * cho nhiều instance. Hàng đã quá hạn được dọn trong refresh().
  */
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -23,15 +23,13 @@ export interface JwtPayload {
   role: string;
 }
 
-/** Băm refresh token trước khi so sánh — không lưu token thô trong bộ nhớ. */
+/** Băm refresh token trước khi lưu/so sánh — không lưu token thô trong DB. */
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 @Injectable()
 export class AuthService {
-  private revokedRefreshTokens = new Set<string>();
-
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -83,9 +81,20 @@ export class AuthService {
   /** Cấp lại cặp token mới từ refresh token hợp lệ; token đã logout/hết hạn bị từ chối. */
   async refresh(refreshToken: string) {
     try {
-      if (this.revokedRefreshTokens.has(hashToken(refreshToken))) {
+      // Raw SQL: bảng revoked_tokens mới thêm — không phụ thuộc generated client.
+      const revoked = await this.prisma.$queryRaw<{ tokenHash: string }[]>`
+        SELECT "tokenHash" FROM revoked_tokens
+        WHERE "tokenHash" = ${hashToken(refreshToken)}
+        LIMIT 1
+      `;
+      if (revoked.length > 0) {
         throw new UnauthorizedException('Refresh token has been revoked');
       }
+
+      // Dọn token đã quá hạn — chúng vốn không refresh được nữa.
+      void this.prisma.$executeRaw`
+        DELETE FROM revoked_tokens WHERE "expiresAt" < NOW()
+      `.catch(() => undefined);
 
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
@@ -102,17 +111,27 @@ export class AuthService {
     }
   }
 
-  /** Đăng xuất: thêm hash refresh token vào danh sách thu hồi. */
+  /**
+   * Đăng xuất: ghi hash refresh token vào revoked_tokens để chặn refresh
+   * về sau. Idempotent — token hỏng/hết hạn vẫn trả về thành công vì
+   * chúng vốn không dùng refresh được.
+   */
   async logout(refreshToken: string) {
+    let payload: JwtPayload & { exp?: number };
     try {
-      this.jwtService.verify(refreshToken, {
+      payload = this.jwtService.verify<JwtPayload & { exp?: number }>(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      return { message: 'Logged out successfully' };
     }
 
-    this.revokedRefreshTokens.add(hashToken(refreshToken));
+    const expiresAt = payload.exp ? new Date(payload.exp * 1000) : new Date();
+    await this.prisma.$executeRaw`
+      INSERT INTO revoked_tokens ("id", "tokenHash", "userId", "expiresAt")
+      VALUES (${crypto.randomUUID()}, ${hashToken(refreshToken)}, ${payload.sub}, ${expiresAt})
+      ON CONFLICT ("tokenHash") DO NOTHING
+    `;
     return { message: 'Logged out successfully' };
   }
 

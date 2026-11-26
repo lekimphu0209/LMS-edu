@@ -118,6 +118,19 @@ model PasswordResetLog {
   @@map("password_reset_logs")
 }
 
+// Refresh token đã đăng xuất — lưu hash SHA-256 (không lưu token thô).
+// Hàng hết hạn được dọn định kỳ trong AuthService.refresh().
+model RevokedToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String?
+  expiresAt DateTime
+  revokedAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("revoked_tokens")
+}
+
 // ============================================================
 // ACADEMIC DOMAIN
 // ============================================================
