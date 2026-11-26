@@ -1,3 +1,4 @@
+/** Bộ Card tối giản (Header/Title/Description/Content/Footer) bọc nội dung theo nhóm. */
 import { forwardRef, type HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 

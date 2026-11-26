@@ -20,6 +20,7 @@ const userSelect = {
   updatedAt: true,
 } as const;
 
+/** Triển khai UserRepository bằng Prisma — nơi duy nhất map record DB → UserEntity. */
 @Injectable()
 export class PrismaUserRepository implements UserRepository {
   constructor(private prisma: PrismaService) {}

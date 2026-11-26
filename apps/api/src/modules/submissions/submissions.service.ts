@@ -1,3 +1,9 @@
+/**
+ * SubmissionsService — vòng đời bài nộp của học sinh:
+ * bắt đầu làm → nộp bài → giáo viên chấm. Trạng thái đi theo
+ * IN_PROGRESS → SUBMITTED/LATE → GRADED.
+ * Mỗi lần start/submit còn ghi LearningSession để thống kê thời gian học.
+ */
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { StartSubmissionDto, SubmitSubmissionDto, GradeSubmissionDto } from './dto/submission.dto';
@@ -6,6 +12,10 @@ import { StartSubmissionDto, SubmitSubmissionDto, GradeSubmissionDto } from './d
 export class SubmissionsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Tạo submission mới cho target+student. Trả về submission đang mở
+   * nếu đã có (idempotent); báo lỗi nếu học sinh đã nộp trước đó.
+   */
   async start(dto: StartSubmissionDto, studentId: string) {
     const target = await this.prisma.assignmentTarget.findUnique({
       where: { id: dto.assignmentTargetId },
@@ -13,23 +23,40 @@ export class SubmissionsService {
     if (!target) throw new NotFoundException('Assignment target not found');
 
     const existing = await this.prisma.submission.findFirst({
-      where: { assignmentTargetId: dto.assignmentTargetId, studentId, status: 'IN_PROGRESS' },
+      where: { assignmentTargetId: dto.assignmentTargetId, studentId },
+      orderBy: { createdAt: 'desc' },
     });
-    if (existing) return existing;
+    if (existing) {
+      if (existing.status === 'IN_PROGRESS') return existing;
+      throw new BadRequestException('Already submitted this assignment');
+    }
 
-    return this.prisma.submission.create({
+    const submission = await this.prisma.submission.create({
       data: {
         assignmentTargetId: dto.assignmentTargetId,
         studentId,
         status: 'IN_PROGRESS',
       },
     });
+
+    // Ghi nhận thời điểm bắt đầu làm bài
+    await this.prisma.learningSession.create({
+      data: { studentId, assignmentTargetId: dto.assignmentTargetId, submissionId: submission.id },
+    });
+
+    return submission;
   }
 
+  /**
+   * Nộp bài: ghi đè toàn bộ đáp án (xóa cũ, tạo mới trong transaction),
+   * đánh dấu LATE nếu quá hạn và đóng LearningSession đang mở.
+   */
   async submit(submissionId: string, dto: SubmitSubmissionDto, studentId: string) {
     const submission = await this.prisma.submission.findUnique({ where: { id: submissionId } });
     if (!submission) throw new NotFoundException('Submission not found');
     if (submission.studentId !== studentId) throw new BadRequestException('Not your submission');
+    if (submission.status !== 'IN_PROGRESS')
+      throw new BadRequestException('Submission already submitted');
 
     await this.prisma.submissionAnswer.deleteMany({ where: { submissionId } });
 
@@ -39,18 +66,52 @@ export class SubmissionsService {
 
     const isLate = target?.dueDate ? new Date() > target.dueDate : false;
 
+    // Tự chấm trắc nghiệm: đối chiếu selectedOptionIds với đáp án đúng
+    // trong ngân hàng câu hỏi. FILL_BLANK để trống — giáo viên chấm tay.
+    const questionIds = [...new Set(dto.answers.map((a) => a.questionId))];
+    const questions = await this.prisma.question.findMany({
+      where: { id: { in: questionIds } },
+      include: { options: true },
+    });
+    const questionMap = new Map(questions.map((q) => [q.id, q]));
+
     await this.prisma.$transaction(
-      dto.answers.map((answer) =>
-        this.prisma.submissionAnswer.create({
+      dto.answers.map((answer) => {
+        const question = questionMap.get(answer.questionId);
+        let isCorrect: boolean | undefined;
+        let scoreEarned: number | undefined;
+
+        if (question && question.type !== 'FILL_BLANK') {
+          const correctIds = question.options
+            .filter((o) => o.isCorrect)
+            .map((o) => o.id)
+            .sort();
+          const selectedIds = [...(answer.selectedOptionIds ?? [])].sort();
+          isCorrect =
+            correctIds.length > 0 &&
+            correctIds.length === selectedIds.length &&
+            correctIds.every((id, i) => id === selectedIds[i]);
+          scoreEarned = isCorrect ? question.defaultScore : 0;
+        }
+
+        return this.prisma.submissionAnswer.create({
           data: {
             submissionId,
             questionId: answer.questionId,
             selectedOptionIds: answer.selectedOptionIds ?? undefined,
             textAnswer: answer.textAnswer,
+            isCorrect,
+            scoreEarned,
           },
-        }),
-      ),
+        });
+      }),
     );
+
+    // Ghi nhận thời điểm kết thúc phiên làm bài
+    await this.prisma.learningSession.updateMany({
+      where: { submissionId, endedAt: null },
+      data: { endedAt: new Date() },
+    });
 
     return this.prisma.submission.update({
       where: { id: submissionId },
@@ -62,6 +123,10 @@ export class SubmissionsService {
     });
   }
 
+  /**
+   * Chấm điểm: cập nhật đúng/sai + điểm từng câu, cộng totalScore
+   * và chuyển trạng thái GRADED kèm nhận xét của giáo viên.
+   */
   async grade(submissionId: string, dto: GradeSubmissionDto, gradedBy: string) {
     const submission = await this.prisma.submission.findUnique({ where: { id: submissionId } });
     if (!submission) throw new NotFoundException('Submission not found');
@@ -94,6 +159,7 @@ export class SubmissionsService {
     });
   }
 
+  /** Chi tiết bài nộp: đáp án kèm câu hỏi/option, học sinh và bài tập gốc. */
   async findById(id: string) {
     const submission = await this.prisma.submission.findUnique({
       where: { id },
@@ -107,6 +173,7 @@ export class SubmissionsService {
     return submission;
   }
 
+  /** Toàn bộ bài nộp của một học sinh (mới nhất trước). */
   async findByStudent(studentId: string) {
     return this.prisma.submission.findMany({
       where: { studentId },
@@ -117,6 +184,7 @@ export class SubmissionsService {
     });
   }
 
+  /** Bài nộp của một target cụ thể — dùng cho giáo viên xem theo lớp/học sinh. */
   async findByTarget(assignmentTargetId: string) {
     return this.prisma.submission.findMany({
       where: { assignmentTargetId },

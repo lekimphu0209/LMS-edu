@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 
+/** AuthModule — JWT passport strategy, guard và các route xác thực. */
 @Module({
   imports: [
     PassportModule,

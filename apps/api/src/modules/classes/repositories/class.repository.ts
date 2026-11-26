@@ -1,3 +1,4 @@
+/** Contract tầng dữ liệu lớp học + các kiểu entity/input dùng bởi ClassesService. */
 export interface ClassEntity {
   id: string;
   name: string;

@@ -1,3 +1,4 @@
+/** Contract lưu trữ file (upload/xóa/signed-url); inject qua token FILE_STORAGE. */
 export interface UploadResult {
   url: string;
   key: string;

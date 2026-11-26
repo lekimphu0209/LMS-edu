@@ -7,6 +7,10 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/**
+ * ClassesController — CRUD lớp học, ghi danh/xóa học sinh và thống kê lớp.
+ * Giáo viên không truyền teacherId sẽ tự mặc định xem lớp của chính mình.
+ */
 @ApiTags('Classes')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

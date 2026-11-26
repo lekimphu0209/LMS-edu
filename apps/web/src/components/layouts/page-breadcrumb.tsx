@@ -26,6 +26,7 @@ const staticLabels: Record<string, string> = {
 const adminRoleLabels: Record<string, string> = {
   STUDENT: 'Học sinh',
   TEACHER: 'Giáo viên',
+  ADMIN: 'Quản trị viên',
 };
 
 function labelFor(path: string, search: string): string | null {
@@ -36,24 +37,41 @@ function labelFor(path: string, search: string): string | null {
   if (staticLabels[path]) return staticLabels[path];
   if (/^\/(student\/)?classes\/[^/]+$/.test(path)) return 'Chi tiết lớp';
   if (/^\/curriculum\/[^/]+$/.test(path)) return 'Chi tiết đề cương';
+  if (/^\/(student\/)?assignments\/[^/]+$/.test(path)) return 'Chi tiết bài tập';
   return null;
 }
 
 export function PageBreadcrumb({ homePath }: { homePath: string }) {
-  const { pathname, search } = useLocation();
+  const { pathname, search, state } = useLocation();
   const navigate = useNavigate();
 
   if (pathname === homePath || pathname === '/profile') return null;
 
+  const navCtx = state as { from?: string; classId?: string } | null;
+
   const segments = pathname.split('/').filter(Boolean);
-  const crumbs: Crumb[] = [];
-  segments.forEach((_, i) => {
-    const path = '/' + segments.slice(0, i + 1).join('/');
-    if (path === homePath) return;
-    const isLast = i === segments.length - 1;
-    const label = labelFor(path, isLast ? search : '');
-    if (label) crumbs.push({ label, path: isLast ? path + search : path });
-  });
+  let crumbs: Crumb[] = [];
+  // Breadcrumb theo ngữ cảnh: vào chi tiết bài tập từ trong lớp
+  if (
+    navCtx?.from === 'class' &&
+    navCtx.classId &&
+    /^\/student\/assignments\/[^/]+$/.test(pathname)
+  ) {
+    crumbs = [
+      { label: 'Lớp học', path: '/student/classes' },
+      { label: 'Chi tiết lớp', path: `/student/classes/${navCtx.classId}` },
+      { label: 'Chi tiết bài tập', path: pathname + search },
+    ].filter((c) => c.path !== homePath);
+  } else {
+    segments.forEach((_, i) => {
+      const path = '/' + segments.slice(0, i + 1).join('/');
+      if (path === homePath) return;
+      const isLast = i === segments.length - 1;
+      if (path === '/admin' && !isLast) return;
+      const label = labelFor(path, isLast ? search : '');
+      if (label) crumbs.push({ label, path: isLast ? path + search : path });
+    });
+  }
 
   const parentPath = crumbs.length > 1 ? crumbs[crumbs.length - 2].path : homePath;
 

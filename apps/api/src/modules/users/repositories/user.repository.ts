@@ -1,3 +1,4 @@
+/** Contract tầng dữ liệu người dùng + các kiểu entity/input dùng bởi UsersService. */
 export interface UserEntity {
   id: string;
   fullName: string;

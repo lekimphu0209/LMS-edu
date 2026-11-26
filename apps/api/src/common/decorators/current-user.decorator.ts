@@ -1,5 +1,9 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
+/**
+ * Param decorator @CurrentUser('id'|'role'|...) lấy trường từ request.user
+ * do JwtStrategy gắn vào; không truyền field sẽ trả cả object user.
+ */
 export const CurrentUser = createParamDecorator(
   (data: string | undefined, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();

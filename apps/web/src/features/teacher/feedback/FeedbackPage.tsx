@@ -1,6 +1,7 @@
+/** Trang giáo viên: hộp thư góp ý của học sinh — danh sách + ô trả lời từng góp ý. */
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { getTeacherFeedbacks, replyFeedback, CATEGORY_LABELS, CATEGORY_COLORS, type Feedback } from '@/data/feedback'
+import { getTeacherFeedbacks, replyFeedback, markFeedbackRead, CATEGORY_LABELS, CATEGORY_COLORS, type Feedback } from '@/data/feedback'
 
 export default function TeacherFeedbackPage() {
   const { data: feedbacks = [], isLoading, refetch } = useQuery<Feedback[]>({
@@ -15,6 +16,10 @@ export default function TeacherFeedbackPage() {
       refetch()
     },
   })
+  const markReadMutation = useMutation({
+    mutationFn: (id: string) => markFeedbackRead(id, true),
+    onSuccess: () => refetch(),
+  })
 
   if (isLoading) {
     return <div className="page-container" style={{ paddingTop: 16 }}>Đang tải danh sách góp ý...</div>
@@ -23,7 +28,9 @@ export default function TeacherFeedbackPage() {
   return (
     <div className="page-container" style={{ paddingTop: 16, paddingBottom: 40 }}>
       <h1 className="page-title" style={{ marginBottom: 8 }}>Góp ý từ học sinh</h1>
-      <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 18 }}>{feedbacks.filter(f => !f.replied).length} góp ý chưa phản hồi</p>
+      <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 18 }}>
+        {feedbacks.filter(f => !f.isRead).length} chưa đọc · {feedbacks.filter(f => !f.replied).length} góp ý chưa phản hồi
+      </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {feedbacks.map((fb) => (
           <div key={fb.id} className="card" style={{ padding: 24 }}>
@@ -37,9 +44,12 @@ export default function TeacherFeedbackPage() {
                   <div style={{ fontSize: 12, color: '#6B7280' }}>{fb.class} · {fb.date}</div>
                 </div>
               </div>
-              <span className={fb.replied ? 'badge-success' : 'badge-warning'}>
-                {fb.replied ? 'Đã phản hồi' : 'Chưa phản hồi'}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {!fb.isRead && <span className="badge-warning">Chưa đọc</span>}
+                <span className={fb.replied ? 'badge-success' : 'badge-warning'}>
+                  {fb.replied ? 'Đã phản hồi' : 'Chưa phản hồi'}
+                </span>
+              </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: CATEGORY_COLORS[fb.category].bg, color: CATEGORY_COLORS[fb.category].color }}>
@@ -53,6 +63,16 @@ export default function TeacherFeedbackPage() {
                 <div style={{ fontSize: 12, color: '#16A34A', fontWeight: 600, marginBottom: 4 }}>Phản hồi của bạn · {fb.reply.date}</div>
                 <div style={{ fontSize: 13, color: '#374151' }}>{fb.reply.text}</div>
               </div>
+            )}
+            {!fb.isRead && (
+              <button
+                className="btn-secondary"
+                style={{ marginTop: 10, padding: '6px 14px', fontSize: 13 }}
+                disabled={markReadMutation.isPending}
+                onClick={() => markReadMutation.mutate(fb.id)}
+              >
+                Đánh dấu đã đọc
+              </button>
             )}
             {!fb.replied && (
               <div style={{ marginTop: 12 }}>

@@ -5,6 +5,10 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma.service';
 import { JwtPayload } from './auth.service';
 
+/**
+ * Xác thực access token mỗi request: giải mã JWT, đối chiếu user trong DB
+ * còn ACTIVE và gắn { id, email, role } vào request.user.
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(

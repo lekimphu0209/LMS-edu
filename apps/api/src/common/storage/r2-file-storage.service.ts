@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileStorage, UploadResult } from './file-storage.interface';
 
+/** Lưu trữ file qua Cloudflare R2 (S3-compatible); cấu hình từ env R2_*. */
 @Injectable()
 export class R2FileStorageService implements FileStorage {
   private readonly logger = new Logger(R2FileStorageService.name);

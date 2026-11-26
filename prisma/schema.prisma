@@ -72,6 +72,7 @@ model User {
   status              UserStatus          @default(ACTIVE)
   mustChangePassword  Boolean             @default(false)
   createdBy           String?
+  lastLoginAt         DateTime?
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 
@@ -115,6 +116,19 @@ model PasswordResetLog {
 
   @@index([userId])
   @@map("password_reset_logs")
+}
+
+// Refresh token đã đăng xuất — lưu hash SHA-256 (không lưu token thô).
+// Hàng hết hạn được dọn định kỳ trong AuthService.refresh().
+model RevokedToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String?
+  expiresAt DateTime
+  revokedAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("revoked_tokens")
 }
 
 // ============================================================

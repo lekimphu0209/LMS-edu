@@ -1,7 +1,12 @@
+/**
+ * App — gốc ứng dụng: QueryClientProvider (React Query) + AuthProvider +
+ * toàn bộ route map chia theo khu vực admin/teacher/student, bọc ProtectedRoute.
+ */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ProtectedRoute } from '@/components/protected-route';
+import { Toaster } from '@/components/ui/toaster';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { ProfilePage } from '@/features/auth/pages/ProfilePage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
@@ -19,12 +24,14 @@ import {
   CurriculumPage,
   AssignmentManagerPage,
   CreateAssignmentPage,
+  AssignmentDetailPage,
   FeedbackPage,
 } from '@/features/teacher/wrappers';
 import { StudentLayout } from '@/features/student/shared/layouts/StudentLayout';
 import StudentDashboard from '@/features/student/pages/StudentDashboard';
 import StudentClassDetail from '@/features/student/pages/StudentClassDetail';
 import StudentAssignments from '@/features/student/pages/StudentAssignments';
+import StudentAssignmentDetail from '@/features/student/pages/StudentAssignmentDetail';
 import StudentFeedback from '@/features/student/pages/StudentFeedback';
 import Quiz from '@/features/student/pages/Quiz';
 
@@ -66,6 +73,14 @@ export function App() {
               }
             />
             <Route
+              path="/admin/statistics"
+              element={
+                <ProtectedRoute roles={['ADMIN']}>
+                  <StatisticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/submissions"
               element={
                 <ProtectedRoute>
@@ -95,6 +110,7 @@ export function App() {
               <Route path="/questions" element={<QuestionBankPage />} />
               <Route path="/assignments" element={<AssignmentManagerPage />} />
               <Route path="/assignments/new" element={<CreateAssignmentPage />} />
+              <Route path="/assignments/:id" element={<AssignmentDetailPage />} />
               <Route path="/progress" element={<CurriculumPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
             </Route>
@@ -112,10 +128,11 @@ export function App() {
               <Route path="/student/classes" element={<StudentDashboard />} />
               <Route path="/student/classes/:id" element={<StudentClassDetail />} />
               <Route path="/student/assignments" element={<StudentAssignments />} />
+              <Route path="/student/assignments/:id" element={<StudentAssignmentDetail />} />
               <Route path="/student/feedback" element={<StudentFeedback />} />
             </Route>
             <Route
-              path="/student/quiz"
+              path="/student/assignments/:id/quiz"
               element={
                 <ProtectedRoute roles={['STUDENT']}>
                   <Quiz />
@@ -133,6 +150,7 @@ export function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+          <Toaster />
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

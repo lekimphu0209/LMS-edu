@@ -2,6 +2,10 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
+/**
+ * Chặn route theo vai trò: đọc metadata @Roles của handler, chưa khai báo
+ * @Roles thì cho qua (chỉ cần đăng nhập), user.role không khớp thì 403.
+ */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}

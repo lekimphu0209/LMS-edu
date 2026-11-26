@@ -6,6 +6,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/** StatisticsController — số liệu tổng quan theo vai trò, tăng trưởng user và phân bổ câu hỏi. */
 @ApiTags('Statistics')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

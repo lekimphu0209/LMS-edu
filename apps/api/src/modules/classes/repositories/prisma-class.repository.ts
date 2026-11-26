@@ -7,6 +7,7 @@ import {
   UpdateClassInput,
 } from './class.repository';
 
+/** Triển khai ClassRepository bằng Prisma, kèm lọc/phân trang/tìm kiếm. */
 @Injectable()
 export class PrismaClassRepository implements ClassRepository {
   constructor(private prisma: PrismaService) {}

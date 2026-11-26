@@ -6,6 +6,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/** FeedbackController — nhận xét bài nộp và hộp thư góp ý học sinh↔giáo viên. */
 @ApiTags('Feedback')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -42,8 +43,10 @@ export class FeedbackController {
   async getInbox(
     @Query('isRead') isRead?: string,
     @Query('studentId') studentId?: string,
+    @CurrentUser('id') userId?: string,
+    @CurrentUser('role') role?: string,
   ) {
-    return this.feedbackService.findInbox({ isRead, studentId });
+    return this.feedbackService.findInbox({ isRead, studentId }, userId, role);
   }
 
   @Patch(':id/read')

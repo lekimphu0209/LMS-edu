@@ -7,6 +7,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/** AdminClassesController — quản trị lớp: lọc/tìm kiếm, tạo/sửa và bật-tắt trạng thái lớp. */
 @ApiTags('Admin Classes')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

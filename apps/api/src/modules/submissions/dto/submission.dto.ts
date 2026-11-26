@@ -1,3 +1,4 @@
+/** DTO vòng đời bài nộp: bắt đầu, gửi đáp án và payload chấm điểm từng câu. */
 import { IsString, IsOptional, IsArray, IsNumber, IsBoolean } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 

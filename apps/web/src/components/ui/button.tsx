@@ -1,3 +1,4 @@
+/** Nút cơ bản theo shadcn-style: variant (default/destructive/outline/secondary/ghost/link) × size (sm/default/lg/icon). */
 import { cva, type VariantProps } from 'class-variance-authority';
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';

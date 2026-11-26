@@ -7,6 +7,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/** QuestionBankController — CRUD ngân hàng câu hỏi với lọc + phân trang. */
 @ApiTags('Question Bank')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

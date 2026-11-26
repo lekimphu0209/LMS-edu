@@ -1,6 +1,10 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
 
+/**
+ * Chuẩn hóa response lỗi HTTP về { statusCode, message, path, timestamp }
+ * và log cảnh báo — đăng ký global trong main.ts.
+ */
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);

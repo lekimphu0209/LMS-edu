@@ -1,3 +1,4 @@
+/** Ô input cơ bản style đồng nhất (border, focus ring, trạng thái disabled). */
 import { forwardRef, type InputHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 

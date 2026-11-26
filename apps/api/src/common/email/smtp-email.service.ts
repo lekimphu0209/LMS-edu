@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from './email-service.interface';
 
+/** Gửi email qua SMTP; cấu hình SMTP_* trong env, lỗi gửi chỉ log (không chặn luồng). */
 @Injectable()
 export class SmtpEmailService implements EmailService {
   private readonly logger = new Logger(SmtpEmailService.name);

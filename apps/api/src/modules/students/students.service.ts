@@ -1,3 +1,9 @@
+/**
+ * StudentsService — các endpoint tự phục vụ của học sinh (/students/me/*):
+ * lớp đã ghi danh, bài tập được giao, đề thi, góp ý và thống kê cá nhân.
+ * Mọi hàm đều nhận studentId của người đang đăng nhập, không cho truy cập
+ * dữ liệu học sinh khác.
+ */
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateMyFeedbackDto } from './dto/student.dto';
@@ -10,6 +16,7 @@ export class StudentsService {
 
   // ── Helpers ──────────────────────────────────────────────────
 
+  /** Id các lớp học sinh đang ghi danh (ENROLLED) — dùng lọc target. */
   private async getEnrolledClassIds(studentId: string): Promise<string[]> {
     const rows = await this.prisma.classStudent.findMany({
       where: { studentId, status: 'ENROLLED' },
@@ -18,6 +25,7 @@ export class StudentsService {
     return rows.map((r) => r.classId);
   }
 
+  /** 403 nếu học sinh không thuộc lớp — chặn truy cập lớp của người khác. */
   private async assertEnrolled(classId: string, studentId: string) {
     const enrollment = await this.prisma.classStudent.findFirst({
       where: { classId, studentId, status: 'ENROLLED' },
@@ -47,6 +55,11 @@ export class StudentsService {
     });
   }
 
+  /**
+   * Map AssignmentTarget → shape bài tập phía học sinh:
+   * gộp thông tin đề, hạn nộp, số ngày còn lại và trạng thái submission
+   * mới nhất của chính học sinh đó.
+   */
   private toStudentAssignment(t: any) {
     const now = Date.now();
     const dueAt = t.dueDate ? new Date(t.dueDate).getTime() : null;
@@ -68,12 +81,17 @@ export class StudentsService {
       done,
       score: sub?.totalScore ?? null,
       submittedAt: sub?.submittedAt?.toISOString() ?? null,
+      submissionId: sub?.id ?? null,
       maxScore: t.assignment.maxScore,
     };
   }
 
   // ── Classes ──────────────────────────────────────────────────
 
+  /**
+   * Lớp đã ghi danh kèm tên GV, % hoàn thành bài tập, số bài chờ làm,
+   * điểm TB và bài nộp gần nhất còn hạn — đủ để render card lớp.
+   */
   async getMyClasses(studentId: string) {
     const enrollments = await this.prisma.classStudent.findMany({
       where: { studentId, status: 'ENROLLED' },
@@ -128,6 +146,10 @@ export class StudentsService {
     });
   }
 
+  /**
+   * Chi tiết một lớp: cây đề cương chương→bài kèm trạng thái/điểm/thời gian
+   * của từng bài (theo submission của học sinh) và danh sách bài tập được giao.
+   */
   async getMyClass(classId: string, studentId: string) {
     await this.assertEnrolled(classId, studentId);
 
@@ -156,6 +178,7 @@ export class StudentsService {
                                   where: { studentId },
                                   orderBy: { createdAt: 'desc' },
                                   take: 1,
+                                  include: { learningSession: true },
                                 },
                               },
                             },
@@ -183,11 +206,23 @@ export class StudentsService {
           const subs = ls.assignments.flatMap((a) => a.targets.flatMap((t) => t.submissions));
           const done = subs.some((s) => ['SUBMITTED', 'LATE', 'GRADED'].includes(s.status));
           const scores = subs.map((s) => s.totalScore).filter((s): s is number => s !== null);
+          const lastSubmitted = subs
+            .map((s) => s.submittedAt ?? s.createdAt)
+            .filter((d): d is Date => !!d)
+            .sort((a, b) => b.getTime() - a.getTime())[0];
+          const timeMin = Math.round(
+            subs.reduce((sum, s) => {
+              const ls = s.learningSession;
+              return ls?.endedAt ? sum + (ls.endedAt.getTime() - ls.startedAt.getTime()) / 60000 : sum;
+            }, 0),
+          );
           return {
             id: ls.id,
             title: ls.title,
             done,
             score: scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : null,
+            timeMin,
+            completedAt: done ? (lastSubmitted ?? null) : null,
           };
         }),
       })),
@@ -215,6 +250,7 @@ export class StudentsService {
 
   // ── Assignments ──────────────────────────────────────────────
 
+  /** Bài tập được giao (qua lớp hoặc trực tiếp), lọc theo classId/status pending|done. */
   async getMyAssignments(studentId: string, status?: string, classId?: string) {
     const targets = await this.getVisibleTargets(studentId);
     let items = targets.map((t) => this.toStudentAssignment(t));
@@ -224,6 +260,10 @@ export class StudentsService {
     return items;
   }
 
+  /**
+   * Đề thi của một bài tập: chỉ trả khi học sinh thực sự được giao
+   * (target của lớp mình hoặc trực tiếp); không trả đáp án đúng.
+   */
   async getQuiz(assignmentId: string, studentId: string) {
     const classIds = await this.getEnrolledClassIds(studentId);
     const target = await this.prisma.assignmentTarget.findFirst({
@@ -275,6 +315,7 @@ export class StudentsService {
 
   // ── Feedback ─────────────────────────────────────────────────
 
+  /** Góp ý của học sinh kèm tên lớp/giáo viên (join thủ công vì feedback chỉ lưu id). */
   async getMyFeedbacks(studentId: string) {
     const rows = await this.prisma.feedback.findMany({
       where: { studentId },
@@ -305,6 +346,7 @@ export class StudentsService {
     }));
   }
 
+  /** Gửi góp ý cho giáo viên của một lớp học sinh đang học. */
   async createFeedback(dto: CreateMyFeedbackDto, studentId: string) {
     await this.assertEnrolled(dto.classId, studentId);
     const cls = await this.prisma.class.findUnique({ where: { id: dto.classId } });
@@ -322,6 +364,7 @@ export class StudentsService {
 
   // ── Stats ────────────────────────────────────────────────────
 
+  /** Số liệu cá nhân: số lớp, bài chờ làm/quá hạn, điểm TB và tiến độ chung. */
   async getMyStats(studentId: string) {
     const classes = await this.getMyClasses(studentId);
     const targets = await this.getVisibleTargets(studentId);

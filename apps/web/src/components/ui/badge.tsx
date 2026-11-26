@@ -1,3 +1,4 @@
+/** Badge nhãn nhỏ (variant: default/secondary/destructive/outline) dùng cho trạng thái, đếm số. */
 import { type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 

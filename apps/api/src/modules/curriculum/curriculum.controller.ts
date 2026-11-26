@@ -15,6 +15,10 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/**
+ * CurriculumController — CRUD đề cương/chương/bài; PUT :id/structure thay
+ * toàn bộ cây chương→bài→câu hỏi trong một transaction (editor dùng).
+ */
 @ApiTags('Curriculum')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
