@@ -62,15 +62,57 @@ export class FeedbackService {
     return this.prisma.feedback.create({ data });
   }
 
-  /** Hộp thư góp ý của giáo viên, lọc theo đã đọc / học sinh (mới nhất trước). */
-  async findInbox(filters: { isRead?: string; studentId?: string }) {
-    return this.prisma.feedback.findMany({
+  /**
+   * Hộp thư góp ý của giáo viên — chỉ gồm học sinh trong các lớp mình dạy
+   * (admin xem tất cả), lọc theo đã đọc / học sinh (mới nhất trước).
+   * Model Feedback không có relation nên tên HS/lớp được gắn thủ công.
+   */
+  async findInbox(
+    filters: { isRead?: string; studentId?: string },
+    userId?: string,
+    role?: string,
+  ) {
+    const classByStudent = new Map<string, string>();
+    let studentScope: string[] | undefined;
+
+    if (role === 'TEACHER' && userId) {
+      const enrollments = await this.prisma.classStudent.findMany({
+        where: {
+          status: 'ENROLLED',
+          class: {
+            OR: [{ teacherId: userId }, { teachers: { some: { teacherId: userId } } }],
+          },
+        },
+        select: { studentId: true, class: { select: { name: true } } },
+      });
+      for (const e of enrollments) {
+        if (!classByStudent.has(e.studentId)) {
+          classByStudent.set(e.studentId, e.class.name);
+        }
+      }
+      studentScope = [...classByStudent.keys()];
+    }
+
+    const feedbacks = await this.prisma.feedback.findMany({
       where: {
         ...(filters.isRead !== undefined ? { isRead: filters.isRead === 'true' } : {}),
         ...(filters.studentId ? { studentId: filters.studentId } : {}),
+        ...(studentScope ? { studentId: { in: studentScope } } : {}),
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    const students = await this.prisma.user.findMany({
+      where: { id: { in: [...new Set(feedbacks.map((f) => f.studentId))] } },
+      select: { id: true, fullName: true },
+    });
+    const nameById = new Map(students.map((u) => [u.id, u.fullName]));
+
+    return feedbacks.map((f) => ({
+      ...f,
+      studentName: nameById.get(f.studentId) ?? 'Học sinh',
+      className: classByStudent.get(f.studentId) ?? '',
+    }));
   }
 
   /** Giáo viên trả lời góp ý — ghi repliedAt và reset isRead để học sinh thấy. */

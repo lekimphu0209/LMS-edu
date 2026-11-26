@@ -31,6 +31,7 @@ export interface Feedback {
   message: string
   date: string // dd/mm/yyyy
   replied: boolean
+  isRead: boolean
   reply?: FeedbackReply
 }
 
@@ -52,6 +53,7 @@ export async function getTeacherFeedbacks(): Promise<Feedback[]> {
     message: f.content,
     date: formatDate(f.createdAt),
     replied: !!f.reply,
+    isRead: !!f.isRead,
     reply: f.reply
       ? { text: f.reply, date: formatDate(f.repliedAt), teacher: f.teacherName ?? f.teacher?.fullName ?? 'Giáo viên' }
       : undefined,
@@ -60,4 +62,8 @@ export async function getTeacherFeedbacks(): Promise<Feedback[]> {
 
 export async function replyFeedback(feedbackId: string, reply: string) {
   return api.post(`/feedback/${feedbackId}/reply`, { reply })
+}
+
+export async function markFeedbackRead(feedbackId: string, isRead: boolean) {
+  return api.patch(`/feedback/${feedbackId}/read`, { isRead })
 }

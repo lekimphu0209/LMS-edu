@@ -47,7 +47,7 @@ interface SubmissionAnswer {
   question?: { id: string; questionText: string; type: string; options?: { id: string; optionText: string; isCorrect: boolean }[] };
   selectedOptionIds?: string[];
   textAnswer?: string;
-  score?: number | null;
+  scoreEarned?: number | null;
   isCorrect?: boolean;
 }
 
@@ -133,8 +133,8 @@ export function SubmissionsPage() {
 
   // Grade submission
   const gradeMutation = useMutation({
-    mutationFn: async ({ submissionId, scores, teacherNote }: { submissionId: string; scores: { questionId: string; score: number }[]; teacherNote?: string }) => {
-      const { data } = await api.post(`/submissions/${submissionId}/grade`, { scores, teacherNote });
+    mutationFn: async ({ submissionId, answers, teacherNote }: { submissionId: string; answers: { answerId: string; isCorrect?: boolean; scoreEarned?: number }[]; teacherNote?: string }) => {
+      const { data } = await api.post(`/submissions/${submissionId}/grade`, { answers, teacherNote });
       return data;
     },
     onSuccess: () => {
@@ -176,11 +176,12 @@ export function SubmissionsPage() {
 
   const handleGrade = () => {
     if (!gradeDetail || !gradeSubmissionId) return;
-    const scores = (gradeDetail.answers || []).map((a) => ({
-      questionId: a.questionId,
-      score: gradeScores[a.questionId] ?? 0,
+    const answers = (gradeDetail.answers || []).map((a) => ({
+      answerId: a.id,
+      isCorrect: a.isCorrect,
+      scoreEarned: gradeScores[a.questionId] ?? a.scoreEarned ?? 0,
     }));
-    gradeMutation.mutate({ submissionId: gradeSubmissionId, scores, teacherNote: teacherNote || undefined });
+    gradeMutation.mutate({ submissionId: gradeSubmissionId, answers, teacherNote: teacherNote || undefined });
   };
 
   const updateAnswer = (questionId: string, field: 'optionIds' | 'textAnswer', val: string[] | string) => {
@@ -323,7 +324,7 @@ export function SubmissionsPage() {
                       <Input
                         type="number"
                         className="w-24"
-                        value={gradeScores[a.questionId] ?? a.score ?? 0}
+                        value={gradeScores[a.questionId] ?? a.scoreEarned ?? 0}
                         onChange={(e) => setGradeScores(prev => ({ ...prev, [a.questionId]: Number(e.target.value) }))}
                       />
                     </div>

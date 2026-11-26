@@ -66,17 +66,45 @@ export class SubmissionsService {
 
     const isLate = target?.dueDate ? new Date() > target.dueDate : false;
 
+    // Tự chấm trắc nghiệm: đối chiếu selectedOptionIds với đáp án đúng
+    // trong ngân hàng câu hỏi. FILL_BLANK để trống — giáo viên chấm tay.
+    const questionIds = [...new Set(dto.answers.map((a) => a.questionId))];
+    const questions = await this.prisma.question.findMany({
+      where: { id: { in: questionIds } },
+      include: { options: true },
+    });
+    const questionMap = new Map(questions.map((q) => [q.id, q]));
+
     await this.prisma.$transaction(
-      dto.answers.map((answer) =>
-        this.prisma.submissionAnswer.create({
+      dto.answers.map((answer) => {
+        const question = questionMap.get(answer.questionId);
+        let isCorrect: boolean | undefined;
+        let scoreEarned: number | undefined;
+
+        if (question && question.type !== 'FILL_BLANK') {
+          const correctIds = question.options
+            .filter((o) => o.isCorrect)
+            .map((o) => o.id)
+            .sort();
+          const selectedIds = [...(answer.selectedOptionIds ?? [])].sort();
+          isCorrect =
+            correctIds.length > 0 &&
+            correctIds.length === selectedIds.length &&
+            correctIds.every((id, i) => id === selectedIds[i]);
+          scoreEarned = isCorrect ? question.defaultScore : 0;
+        }
+
+        return this.prisma.submissionAnswer.create({
           data: {
             submissionId,
             questionId: answer.questionId,
             selectedOptionIds: answer.selectedOptionIds ?? undefined,
             textAnswer: answer.textAnswer,
+            isCorrect,
+            scoreEarned,
           },
-        }),
-      ),
+        });
+      }),
     );
 
     // Ghi nhận thời điểm kết thúc phiên làm bài
